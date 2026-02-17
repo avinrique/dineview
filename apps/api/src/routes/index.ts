@@ -1,0 +1,30 @@
+import { Router } from 'express';
+import { healthRouter } from '../modules/health/health.routes';
+import { authRouter } from '../modules/auth/auth.routes';
+import { sessionRouter } from '../modules/session/session.routes';
+import { menuRouter } from '../modules/menu/menu.routes';
+import { orderRouter } from '../modules/order/order.routes';
+import { tableRouter } from '../modules/table/table.routes';
+import { qrRouter } from '../modules/qr/qr.routes';
+import { categoryRouter } from '../modules/category/category.routes';
+import { dishRouter } from '../modules/dish/dish.routes';
+import { assetRouter } from '../modules/asset/asset.routes';
+import { analyticsRouter } from '../modules/analytics/analytics.routes';
+import { restaurantRouter } from '../modules/restaurant/restaurant.routes';
+import { staffRouter } from '../modules/staff/staff.routes';
+
+export const apiRouter = Router();
+
+apiRouter.use('/health', healthRouter);
+apiRouter.use('/auth', authRouter);
+apiRouter.use('/scan', sessionRouter);
+apiRouter.use('/menu', menuRouter);
+apiRouter.use('/orders', orderRouter);
+apiRouter.use('/admin/tables', tableRouter);
+apiRouter.use('/admin/qr', qrRouter);
+apiRouter.use('/admin/categories', categoryRouter);
+apiRouter.use('/admin/dishes', dishRouter);
+apiRouter.use('/admin/assets', assetRouter);
+apiRouter.use('/admin/analytics', analyticsRouter);
+apiRouter.use('/admin/restaurant', restaurantRouter);
+apiRouter.use('/admin/staff', staffRouter);

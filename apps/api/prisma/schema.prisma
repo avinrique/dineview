@@ -1,0 +1,356 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+  KITCHEN_STAFF
+  WAITER
+}
+
+enum OrderStatus {
+  PLACED
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED
+  PAID
+  CANCELLED
+}
+
+enum ArAssetStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum SessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum Allergen {
+  CELERY
+  GLUTEN
+  CRUSTACEANS
+  EGGS
+  FISH
+  LUPIN
+  MILK
+  MOLLUSCS
+  MUSTARD
+  NUTS
+  PEANUTS
+  SESAME
+  SOYBEANS
+  SULPHITES
+}
+
+// ── Models ──────────────────────────────────────────
+
+model Restaurant {
+  id               String           @id @default(cuid())
+  name             String
+  slug             String           @unique
+  logo             String?
+  address          String?
+  currency         String           @default("USD")
+  timezone         String           @default("UTC")
+  subscriptionPlan SubscriptionPlan @default(FREE)
+  settings         Json             @default("{}")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  users           User[]
+  categories      Category[]
+  dishes          Dish[]
+  tables          Table[]
+  qrCodes         QrCode[]
+  tableSessions   TableSession[]
+  orders          Order[]
+  arAssets        ArAsset[]
+  dailyAnalytics  DailyAnalytics[]
+
+  @@map("restaurants")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String
+  passwordHash String   @map("password_hash")
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  role         UserRole
+  restaurantId String?  @map("restaurant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  restaurant    Restaurant?      @relation(fields: [restaurantId], references: [id])
+  refreshTokens RefreshToken[]
+  statusLogs    OrderStatusLog[]
+
+  @@unique([email, restaurantId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @map("token_hash")
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Category {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String
+  description  String?
+  imageUrl     String?  @map("image_url")
+  sortOrder    Int      @default(0) @map("sort_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  restaurantId String   @map("restaurant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  dishes     Dish[]
+
+  @@unique([slug, restaurantId])
+  @@map("categories")
+}
+
+model Dish {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String
+  description  String?
+  price        Decimal  @db.Decimal(10, 2)
+  imageUrl     String?  @map("image_url")
+  isAvailable  Boolean  @default(true) @map("is_available")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  sortOrder    Int      @default(0) @map("sort_order")
+  prepTimeMin  Int?     @map("prep_time_min")
+  categoryId   String   @map("category_id")
+  restaurantId String   @map("restaurant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  category    Category        @relation(fields: [categoryId], references: [id])
+  restaurant  Restaurant      @relation(fields: [restaurantId], references: [id])
+  nutrition   Nutrition?
+  allergens   DishAllergen[]
+  ingredients DishIngredient[]
+  arAsset     ArAsset?
+  orderItems  OrderItem[]
+
+  @@unique([slug, restaurantId])
+  @@map("dishes")
+}
+
+model Nutrition {
+  id        String @id @default(cuid())
+  calories  Int?
+  proteinG  Float? @map("protein_g")
+  carbsG    Float? @map("carbs_g")
+  fatsG     Float? @map("fats_g")
+  fiberG    Float? @map("fiber_g")
+  sugarG    Float? @map("sugar_g")
+  sodiumMg  Float? @map("sodium_mg")
+  vitamins  Json?
+  dishId    String @unique @map("dish_id")
+
+  dish Dish @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@map("nutrition")
+}
+
+model DishAllergen {
+  id       String   @id @default(cuid())
+  dishId   String   @map("dish_id")
+  allergen Allergen
+
+  dish Dish @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@unique([dishId, allergen])
+  @@map("dish_allergens")
+}
+
+model DishIngredient {
+  id        String  @id @default(cuid())
+  name      String
+  isPrimary Boolean @default(false) @map("is_primary")
+  dishId    String  @map("dish_id")
+
+  dish Dish @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@map("dish_ingredients")
+}
+
+model ArAsset {
+  id            String        @id @default(cuid())
+  fileUrl       String        @map("file_url")
+  fileSizeBytes Int           @map("file_size_bytes")
+  thumbnailUrl  String?       @map("thumbnail_url")
+  scale         Json          @default("{\"x\":1,\"y\":1,\"z\":1}")
+  rotation      Json          @default("{\"x\":0,\"y\":0,\"z\":0}")
+  hotspots      Json          @default("[]")
+  status        ArAssetStatus @default(PROCESSING)
+  dishId        String        @unique @map("dish_id")
+  restaurantId  String        @map("restaurant_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  dish       Dish       @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@map("ar_assets")
+}
+
+model Table {
+  id           String   @id @default(cuid())
+  label        String
+  capacity     Int
+  isActive     Boolean  @default(true) @map("is_active")
+  locationZone String?  @map("location_zone")
+  restaurantId String   @map("restaurant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
+  qrCodes       QrCode[]
+  tableSessions TableSession[]
+
+  @@unique([label, restaurantId])
+  @@map("tables")
+}
+
+model QrCode {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  isActive     Boolean  @default(true) @map("is_active")
+  scannedCount Int      @default(0) @map("scanned_count")
+  tableId      String   @map("table_id")
+  restaurantId String   @map("restaurant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  table      Table      @relation(fields: [tableId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@map("qr_codes")
+}
+
+model TableSession {
+  id           String        @id @default(cuid())
+  status       SessionStatus @default(ACTIVE)
+  guestCount   Int           @default(1) @map("guest_count")
+  startedAt    DateTime      @default(now()) @map("started_at")
+  endedAt      DateTime?     @map("ended_at")
+  tableId      String        @map("table_id")
+  restaurantId String        @map("restaurant_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  table      Table      @relation(fields: [tableId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  orders     Order[]
+
+  @@map("table_sessions")
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  orderNumber  String      @map("order_number")
+  status       OrderStatus @default(PLACED)
+  specialNotes String?     @map("special_notes")
+  subtotal     Decimal     @db.Decimal(10, 2)
+  tax          Decimal     @db.Decimal(10, 2)
+  total        Decimal     @db.Decimal(10, 2)
+  placedAt     DateTime    @default(now()) @map("placed_at")
+  acceptedAt   DateTime?   @map("accepted_at")
+  preparingAt  DateTime?   @map("preparing_at")
+  readyAt      DateTime?   @map("ready_at")
+  servedAt     DateTime?   @map("served_at")
+  paidAt       DateTime?   @map("paid_at")
+  sessionId    String      @map("session_id")
+  restaurantId String      @map("restaurant_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  session    TableSession     @relation(fields: [sessionId], references: [id])
+  restaurant Restaurant       @relation(fields: [restaurantId], references: [id])
+  items      OrderItem[]
+  statusLogs OrderStatusLog[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  quantity     Int
+  unitPrice    Decimal @map("unit_price") @db.Decimal(10, 2)
+  subtotal     Decimal @db.Decimal(10, 2)
+  specialNotes String? @map("special_notes")
+  orderId      String  @map("order_id")
+  dishId       String  @map("dish_id")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dish  Dish  @relation(fields: [dishId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderStatusLog {
+  id          String      @id @default(cuid())
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus @map("to_status")
+  changedAt   DateTime    @default(now()) @map("changed_at")
+  note        String?
+  orderId     String      @map("order_id")
+  changedById String?     @map("changed_by_id")
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation(fields: [changedById], references: [id])
+
+  @@map("order_status_logs")
+}
+
+model DailyAnalytics {
+  id             String   @id @default(cuid())
+  date           DateTime @db.Date
+  totalOrders    Int      @default(0) @map("total_orders")
+  totalRevenue   Decimal  @default(0) @db.Decimal(10, 2) @map("total_revenue")
+  avgOrderValue  Decimal  @default(0) @db.Decimal(10, 2) @map("avg_order_value")
+  totalGuests    Int      @default(0) @map("total_guests")
+  avgSessionMin  Float    @default(0) @map("avg_session_min")
+  topDishes      Json     @default("[]") @map("top_dishes")
+  restaurantId   String   @map("restaurant_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([date, restaurantId])
+  @@map("daily_analytics")
+}
