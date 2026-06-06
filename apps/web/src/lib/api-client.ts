@@ -1,4 +1,7 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+// Empty by default so the browser hits relative `/api/v1` paths, which Next.js
+// proxies to the API server-side. This keeps everything same-origin HTTPS and
+// works from a phone (where `localhost` would point at the phone itself).
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface FetchOptions extends RequestInit {
   token?: string;
