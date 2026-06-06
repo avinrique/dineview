@@ -1,21 +1,18 @@
 'use client';
 
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useGetDishDetailQuery } from '@/store/api/menu-api';
-import { ArViewer } from '@/components/ar/ar-viewer';
-import { ModelViewer } from '@/components/ar/model-viewer';
+import { ModelViewerAr } from '@/components/ar/model-viewer-ar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function DishArPage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const mode = searchParams.get('mode');
   const { data, isLoading } = useGetDishDetailQuery(params.id as string);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -30,60 +27,37 @@ export default function DishArPage() {
     );
   }
 
-  const arAsset = dish.arAsset;
-  const modelUrl = arAsset?.fileUrl;
-  const placeholderType = dish.category?.slug?.includes('drink')
-    ? 'drink'
-    : dish.category?.slug?.includes('dessert')
-    ? 'dessert'
-    : dish.category?.slug?.includes('starter')
-    ? 'bowl'
-    : 'plate';
+  // Use the dish's own AR model if one has been uploaded, otherwise the
+  // bundled sample model so AR/3D always has something to show.
+  const modelUrl = dish.arAsset?.fileUrl as string | undefined;
 
-  const hotspots = arAsset?.hotspots || [];
-  const scale = arAsset?.scale || { x: 1, y: 1, z: 1 };
-  const rotation = arAsset?.rotation || { x: 0, y: 0, z: 0 };
-
-  // 3D fallback mode
-  if (mode === '3d') {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="sticky top-0 bg-white z-30 px-4 py-3 flex items-center justify-between shadow-sm">
-          <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-600">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back
-          </button>
-          <h1 className="font-semibold">{dish.name} - 3D View</h1>
-          <div className="w-12" />
-        </div>
-        <div className="max-w-lg mx-auto p-4">
-          <ModelViewer
-            modelUrl={modelUrl}
-            placeholderType={placeholderType as any}
-            scale={scale}
-            rotation={rotation}
-            className="h-[400px]"
-          />
-          <div className="mt-4 card">
-            <h2 className="font-semibold text-gray-900 mb-2">{dish.name}</h2>
-            <p className="text-sm text-gray-600">{dish.description}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Full AR mode
   return (
-    <ArViewer
-      modelUrl={modelUrl}
-      placeholderType={placeholderType as any}
-      scale={scale}
-      rotation={rotation}
-      hotspots={hotspots as any}
-      onClose={() => router.back()}
-    />
+    <div className="fixed inset-0 flex flex-col bg-gray-50">
+      <div className="bg-white z-30 px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-600">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
+        <h1 className="font-semibold truncate px-2">{dish.name}</h1>
+        <div className="w-12" />
+      </div>
+
+      <div className="relative flex-1 min-h-0">
+        <ModelViewerAr modelUrl={modelUrl} alt={`${dish.name} 3D model`} />
+      </div>
+
+      <div className="bg-white px-4 py-3 shrink-0 border-t border-gray-100">
+        <p className="text-sm text-gray-600 text-center">
+          Drag to rotate · pinch to zoom · tap <span className="font-medium text-brand-600">View in your space</span> for AR
+        </p>
+        {!modelUrl && (
+          <p className="text-xs text-gray-400 text-center mt-1">
+            Showing a sample model — upload a 3D model for this dish in the admin panel.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
