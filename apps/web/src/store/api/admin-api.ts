@@ -36,6 +36,18 @@ export const adminApi = apiSlice.injectEndpoints({
       query: (tableId: string) => ({ url: `/admin/qr/tables/${tableId}/regenerate`, method: 'POST' }),
       invalidatesTags: ['Tables'],
     }),
+    closeTableSession: builder.mutation({
+      query: (tableId: string) => ({ url: `/admin/tables/${tableId}/close-session`, method: 'POST' }),
+      invalidatesTags: ['Tables', 'Orders', 'Analytics'],
+    }),
+    uploadFile: builder.mutation<{ data: { url: string; kind: 'image' | 'model'; fileSizeBytes: number } }, File>({
+      query: (file) => ({
+        url: `/admin/uploads?filename=${encodeURIComponent(file.name)}`,
+        method: 'POST',
+        body: file,
+        headers: { 'Content-Type': 'application/octet-stream' },
+      }),
+    }),
     getStaff: builder.query({
       query: () => '/admin/staff',
       providesTags: ['Staff'],
@@ -54,9 +66,11 @@ export const adminApi = apiSlice.injectEndpoints({
     }),
     getRevenue: builder.query({
       query: (days: number = 30) => `/admin/analytics/revenue?days=${days}`,
+      providesTags: ['Analytics'],
     }),
     getTopDishes: builder.query({
       query: (limit: number = 10) => `/admin/analytics/top-dishes?limit=${limit}`,
+      providesTags: ['Analytics'],
     }),
     getRestaurant: builder.query({
       query: () => '/admin/restaurant',
@@ -78,6 +92,8 @@ export const {
   useDeleteTableMutation,
   useGenerateQrMutation,
   useRegenerateQrMutation,
+  useCloseTableSessionMutation,
+  useUploadFileMutation,
   useGetStaffQuery,
   useCreateStaffMutation,
   useDeleteStaffMutation,

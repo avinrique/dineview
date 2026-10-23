@@ -29,6 +29,7 @@
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Getting Started](#getting-started)
+- [Giving a Demo](#giving-a-demo)
 - [Project Structure](#project-structure)
 - [API Endpoints](#api-endpoints)
 - [AR Integration](#ar-integration)
@@ -58,7 +59,7 @@ DineView replaces paper menus and manual order-taking with a seamless digital wo
 - QR code scan-to-order flow (no app install required)
 - Mobile-first responsive menu with category navigation
 - Dish detail pages with photos, allergens, and nutrition info
-- AR dish preview via WebXR (Android) with fallback 3D viewer (iOS / desktop)
+- AR dish preview on iPhone (Quick Look) and Android (WebXR / Scene Viewer), 3D viewer on desktop
 - Cart management and one-tap order placement
 - Real-time order status tracking via WebSocket
 
@@ -83,7 +84,7 @@ DineView replaces paper menus and manual order-taking with a seamless digital wo
 - Subscription tiers: Free, Starter, Professional, Enterprise
 - Rate limiting on auth and QR scan endpoints
 - Redis-cached public menu (5-minute TTL)
-- S3-compatible asset storage via MinIO (presigned upload URLs)
+- Photo and 3D model uploads stored on disk
 
 ---
 
@@ -95,12 +96,12 @@ DineView replaces paper menus and manual order-taking with a seamless digital wo
 | **Frontend** | Next.js 15 (App Router), React 19, TypeScript 5 |
 | **State Management** | Redux Toolkit + RTK Query |
 | **Styling** | Tailwind CSS 3, Lucide Icons, clsx + tailwind-merge |
-| **AR / 3D** | Three.js 0.170, @react-three/fiber, @react-three/drei, WebXR Device API |
+| **AR / 3D** | Google `<model-viewer>` (AR Quick Look, Scene Viewer, WebXR) |
 | **Backend** | Express 4, TypeScript, Pino logger |
 | **ORM** | Prisma 6 |
 | **Database** | PostgreSQL 16 (Alpine) |
 | **Cache** | Redis 7 (Alpine) |
-| **Object Storage** | MinIO (S3-compatible) |
+| **File Storage** | Local disk (`UPLOAD_DIR`), served via the API |
 | **Real-time** | Socket.IO 4 (typed server/client events) |
 | **Validation** | Zod (shared between frontend and backend) |
 | **Auth** | JWT (access + refresh tokens) + session tokens for customers |
@@ -132,8 +133,8 @@ DineView replaces paper menus and manual order-taking with a seamless digital wo
               +----------------+----------------+
               |                |                |
         +-----+-----+   +-----+-----+   +-----+-----+
-        | PostgreSQL |   |   Redis   |   |   MinIO   |
-        |   :5433    |   |   :6379   |   | :9000/:9001|
+        | PostgreSQL |   |   Redis   |   |  Uploads  |
+        |   :5433    |   |   :6379   |   |  (disk)   |
         +-----+-----+   +-----------+   +-----------+
               |
         +-----+-----+
@@ -173,42 +174,34 @@ POST /api/auth/login -> JWT issued (access + refresh)
 ### Installation
 
 ```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd dineview
-
-# 2. Install dependencies
+# 1. Install dependencies (also generates the Prisma client)
 pnpm install
 
-# 3. Start infrastructure services (PostgreSQL, Redis, MinIO)
+# 2. Start PostgreSQL and Redis (auto-restart is disabled)
 docker compose -f docker/docker-compose.yml up -d
-```
 
-> **Note:** The Docker Compose file maps PostgreSQL to port **5433** on the host to avoid conflicts with any local PostgreSQL instance running on the default port 5432.
+# 3. Environment
+cp apps/api/.env.example apps/api/.env      # defaults work with the compose file
 
-```bash
-# 4. Set up environment variables
-cp apps/api/.env.example apps/api/.env
-# Edit apps/api/.env if needed (defaults work with Docker Compose)
+# 4. Create the schema and load the demo restaurant (menu, 3D models, tables)
+pnpm --filter @dineview/api db:setup
 
-# 5. Run database migrations and seed data
-cd apps/api
-npx prisma migrate dev
-npx prisma db seed
-cd ../..
-
-# 6. Start the development servers
+# 5. Start everything (builds packages/shared first)
 pnpm dev
 ```
 
-This starts both services concurrently via Turborepo:
+> PostgreSQL is mapped to host port **5433** to avoid clashing with a local install on 5432.
+> Dish photos and 3D models uploaded from the admin panel are stored on disk in `apps/api/uploads`
+> (the old MinIO service was removed: its Docker image is no longer published).
 
 | Service | URL |
 |---|---|
+| **Web app** (guest + admin) | http://localhost:3000 |
 | **API server** | http://localhost:4000 |
-| **Web app** | http://localhost:3000 |
-| **MinIO Console** | http://localhost:9001 |
-| **Prisma Studio** | Run `pnpm db:studio` -> http://localhost:5555 |
+| **Prisma Studio** | `pnpm db:studio` → http://localhost:5555 |
+
+The browser only ever talks to the web origin: Next.js proxies `/api`, `/uploads` and `/socket.io`
+to the API, so the same build works on localhost, on a phone over HTTPS, or behind a tunnel.
 
 ### Available Scripts
 
@@ -216,13 +209,41 @@ This starts both services concurrently via Turborepo:
 |---|---|
 | `pnpm dev` | Start all apps in development mode |
 | `pnpm build` | Build all packages and apps |
-| `pnpm lint` | Lint all packages and apps |
-| `pnpm db:migrate` | Run Prisma migrations |
-| `pnpm db:seed` | Seed the database |
+| `pnpm --filter @dineview/api db:setup` | Apply migrations and seed the demo restaurant |
+| `pnpm --filter @dineview/api demo:reset` | Clear all orders/sessions and regenerate 30 days of sample history |
 | `pnpm db:studio` | Open Prisma Studio |
 | `pnpm clean` | Remove all build artifacts and node_modules |
 
 ---
+
+## Giving a Demo
+
+AR needs HTTPS on the phone. The quickest way to get a real HTTPS link is a Cloudflare quick tunnel
+(`brew install cloudflared`):
+
+```bash
+pnpm --filter @dineview/api demo:reset            # fresh kitchen, free tables, sample analytics
+pnpm --filter @dineview/web build
+pnpm --filter @dineview/api dev                   # API on :4000
+cd apps/web && npx next start -p 3000             # web on :3000
+cloudflared tunnel --url http://localhost:3000    # prints https://<random>.trycloudflare.com
+```
+
+Open the printed URL **on your laptop** (so QR codes encode the public URL, not localhost), then:
+
+1. **Landing page** shows a QR code. Guests scan it with their phone camera and land on the demo table.
+2. **Menu** → dishes with an **AR** badge (bakery, fruit bowl, tea set, lemonade) open a live 3D view.
+   Tap **View on your table**: iPhone opens AR Quick Look, Android opens WebXR / Scene Viewer, and the dish
+   appears at real size on the table.
+3. **Order** from the phone. On the laptop, sign in with the **Owner** or **Kitchen** demo button and
+   open **Kitchen display**: the ticket appears instantly with a chime. Bump it to Accepted → Cooking → Ready
+   and the guest's phone updates live.
+4. **Service** tab → *Call a waiter* pops up on the staff screen; *On my way* notifies the guest.
+5. **Tables & QR** → print table codes, or *Close table & settle* to end the session.
+6. **Menu** (admin) → edit a dish to show how a restaurant uploads a photo and a `.glb` model.
+
+The quick-tunnel URL changes every time `cloudflared` restarts, and the demo logins are shown on the
+login page, so treat the link as public while it's running. Stop the tunnel when you're done.
 
 ## Project Structure
 
@@ -288,7 +309,7 @@ dineview/
 │           └── validators/           # Zod schemas (auth, menu, order, table, etc.)
 │
 ├── docker/
-│   └── docker-compose.yml            # PostgreSQL 16, Redis 7, MinIO
+│   └── docker-compose.yml            # PostgreSQL 16, Redis 7
 │
 ├── turbo.json                        # Turborepo pipeline config
 ├── pnpm-workspace.yaml               # pnpm workspace definition
@@ -383,27 +404,25 @@ All endpoints are prefixed with `/api`.
 
 ## AR Integration
 
-DineView uses a progressive approach to 3D dish visualization:
+Dish previews use Google's [`<model-viewer>`](https://modelviewer.dev) (`apps/web/src/components/ar/model-viewer-ar.tsx`):
 
-### WebXR (Android Chrome)
-On supported devices, the app uses the **WebXR Device API** to render 3D dish models directly on the customer's table surface via their phone camera. The implementation uses:
-- **Three.js** for 3D rendering
-- **@react-three/fiber** as the React renderer for Three.js
-- **@react-three/drei** for helper components (environment, controls, loaders)
+| Device | What happens on "View on your table" |
+|---|---|
+| iPhone / iPad (Safari, Chrome) | AR Quick Look; the USDZ is generated on the fly from the GLB |
+| Android (Chrome + ARCore) | In-page WebXR, falling back to Google Scene Viewer |
+| Desktop | Interactive 3D only, plus a QR code that opens the same dish on a phone |
 
-### Fallback 3D Viewer (iOS / Desktop)
-On devices without WebXR support, dishes are displayed in an interactive 3D viewer with:
-- Orbit controls (rotate, zoom, pan)
-- Studio lighting and environment mapping
-- Auto-rotation for idle presentation
+Models are authored at **real-world scale in meters** and shown with `ar-scale="fixed"`, so a croissant
+looks croissant-sized on the table.
 
-### Asset Pipeline
-1. Admin uploads a 3D model (GLB/GLTF) via the presigned URL endpoint
-2. The file is stored in MinIO (S3-compatible)
-3. The asset record is created and linked to a dish
-4. Customers access the AR/3D view from the dish detail page at `/dish/:id/ar`
+### Models
 
----
+- Demo models live in `apps/web/public/models/dishes/*.glb` (photoreal CC0 scans from Poly Haven,
+  see `CREDITS.md` there); the seed links them to dishes.
+- Restaurants upload their own `.glb` (≤ 50 MB) and photos from **Admin → Menu → Edit dish**. Files go to
+  `POST /api/v1/admin/uploads` and are linked with `PUT /api/v1/admin/dishes/:id/model`.
+- For best results: real-world scale, JPEG/PNG textures ≤ 1024 px, no Draco/KTX2 (keeps iOS Quick Look happy),
+  a few MB per model.
 
 ## WebSocket Events
 
@@ -437,50 +456,38 @@ DineView uses typed Socket.IO events for real-time communication. Clients join s
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://dineview:dineview_dev@localhost:5433/dineview` |
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
-| `JWT_ACCESS_SECRET` | Secret for signing access tokens | -- |
-| `JWT_REFRESH_SECRET` | Secret for signing refresh tokens | -- |
-| `JWT_SESSION_SECRET` | Secret for signing customer session tokens | -- |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` / `JWT_SESSION_SECRET` | Token signing secrets | (required) |
 | `PORT` | API server port | `4000` |
-| `NODE_ENV` | Environment | `development` |
-| `CORS_ORIGIN` | Allowed CORS origin | `http://localhost:3000` |
-| `S3_ENDPOINT` | MinIO/S3 endpoint | `http://localhost:9000` |
-| `S3_ACCESS_KEY` | MinIO/S3 access key | -- |
-| `S3_SECRET_KEY` | MinIO/S3 secret key | -- |
-| `S3_BUCKET` | S3 bucket name | `dineview-assets` |
-| `S3_REGION` | S3 region | `us-east-1` |
+| `CORS_ORIGIN` | Allowed origins (comma-separated) | `http://localhost:3000` |
+| `WEB_URL` | Public web URL used in API-generated QR links | first `CORS_ORIGIN` |
+| `DEMO_RESTAURANT_SLUG` | Enables `/scan/demo` for this restaurant | unset |
+| `UPLOAD_DIR` | Where uploaded photos/models are stored | `./uploads` |
 
-### Web (`apps/web`)
-
-The Next.js app communicates with the API. Configure the API URL as needed:
+### Web (`apps/web/.env.local`)
 
 | Variable | Description | Default |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | Backend API base URL | `http://localhost:4000/api` |
-| `NEXT_PUBLIC_WS_URL` | WebSocket server URL | `http://localhost:4000` |
-
----
+| `NEXT_PUBLIC_API_URL` | API base URL; leave blank to use the same-origin proxy | blank |
+| `NEXT_PUBLIC_ENABLE_DEMO` | Show demo shortcuts (landing QR, demo logins, phone hand-off) | unset |
+| `NEXT_PUBLIC_APP_URL` | Public URL to encode in QR codes (defaults to the current origin) | current origin |
+| `API_ORIGIN` | Where Next.js proxies `/api`, `/uploads`, `/socket.io` | `http://127.0.0.1:4000` |
 
 ## Seed Data
 
-Running `npx prisma db seed` populates the database with a demo restaurant:
-
-| Entity | Details |
-|---|---|
-| **Restaurant** | Bella Vista (Italian restaurant) |
-| **Users** | 5 users across all roles |
-| **Categories** | 4 menu categories |
-| **Dishes** | 12 Italian dishes with photos, allergens, and nutrition |
-| **Tables** | 6 tables with QR codes |
+`db:setup` (or `npx prisma db seed`) creates the **Bella Vista** demo restaurant: 5 staff users, 5 categories,
+17 dishes (6 with AR models and photos) and 6 tables with QR codes. Re-running it refreshes the menu
+without duplicating QR codes.
 
 ### Test Credentials
 
-| Role | Email | Password |
-|---|---|---|
-| Owner | `owner@bellavista.com` | `password123` |
+All demo users share the password `password123`:
 
-> Additional users with Manager, Kitchen Staff, and Waiter roles are also seeded. Check the seed file at `apps/api/prisma/seed.ts` for full details.
-
----
+| Role | Email |
+|---|---|
+| Owner | `owner@bellavista.com` |
+| Manager | `manager@bellavista.com` |
+| Kitchen Staff | `kitchen@bellavista.com` |
+| Waiter | `waiter@bellavista.com` |
 
 ## Role-Based Access Control
 

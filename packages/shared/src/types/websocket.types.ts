@@ -60,6 +60,8 @@ export interface BillRequestEvent {
 export interface AcknowledgeEvent {
   notificationId: string;
   acknowledgedBy: string;
+  kind?: 'waiter_call' | 'bill_request';
+  tableId?: string;
   timestamp: string;
 }
 

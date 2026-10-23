@@ -37,8 +37,13 @@ export async function update(req: AuthRequest, res: Response, next: NextFunction
 
 export async function remove(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    await dishService.deleteDish(req.user!.restaurantId!, req.params.id as string);
-    sendNoContent(res);
+    const result = await dishService.deleteDish(req.user!.restaurantId!, req.params.id as string);
+    sendSuccess(res, {
+      data: result,
+      message: result.archived
+        ? 'This dish appears in past orders, so it was hidden from the menu instead of deleted'
+        : 'Dish deleted',
+    });
   } catch (error) { next(error); }
 }
 
@@ -46,5 +51,19 @@ export async function toggleAvailability(req: AuthRequest, res: Response, next: 
   try {
     const dish = await dishService.toggleDishAvailability(req.user!.restaurantId!, req.params.id as string, req.body.isAvailable);
     sendSuccess(res, { data: dish, message: 'Availability updated' });
+  } catch (error) { next(error); }
+}
+
+export async function setModel(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const asset = await dishService.setDishModel(req.user!.restaurantId!, req.params.id as string, req.body);
+    sendSuccess(res, { data: asset, message: '3D model saved' });
+  } catch (error) { next(error); }
+}
+
+export async function removeModel(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    await dishService.removeDishModel(req.user!.restaurantId!, req.params.id as string);
+    sendNoContent(res);
   } catch (error) { next(error); }
 }

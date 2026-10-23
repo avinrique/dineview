@@ -16,10 +16,16 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  createServer(httpsOptions, (req, res) => {
+  const server = createServer(httpsOptions, (req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
-  }).listen(port, hostname, () => {
+  });
+
+  // Forward WebSocket upgrades (socket.io via the /socket.io rewrite, and HMR in dev)
+  const upgrade = app.getUpgradeHandler();
+  server.on('upgrade', (req, socket, head) => upgrade(req, socket, head));
+
+  server.listen(port, hostname, () => {
     console.log(`> HTTPS server ready on https://${hostname}:${port}`);
   });
 });

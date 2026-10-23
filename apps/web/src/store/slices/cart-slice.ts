@@ -9,19 +9,19 @@ export interface CartItem {
   specialNotes?: string;
 }
 
-interface CartState {
+export interface CartState {
   items: CartItem[];
   specialNotes: string;
 }
 
-const initialState: CartState = {
+export const initialCartState: CartState = {
   items: [],
   specialNotes: '',
 };
 
 const cartSlice = createSlice({
   name: 'cart',
-  initialState,
+  initialState: initialCartState,
   reducers: {
     addItem: (state, action: PayloadAction<Omit<CartItem, 'quantity'>>) => {
       const existing = state.items.find((i) => i.dishId === action.payload.dishId);

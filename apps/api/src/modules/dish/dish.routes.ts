@@ -3,7 +3,7 @@ import { authenticate } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/rbac.middleware';
 import { requireTenant } from '../../middleware/tenant.middleware';
 import { validate } from '../../middleware/validate';
-import { createDishSchema, updateDishSchema, toggleAvailabilitySchema } from '@dineview/shared';
+import { createDishSchema, updateDishSchema, toggleAvailabilitySchema, setDishModelSchema } from '@dineview/shared';
 import * as dishController from './dish.controller';
 
 export const dishRouter = Router();
@@ -15,4 +15,6 @@ dishRouter.post('/', requirePermission('dish:write'), validate(createDishSchema)
 dishRouter.get('/:id', requirePermission('dish:read'), dishController.getById);
 dishRouter.patch('/:id', requirePermission('dish:write'), validate(updateDishSchema), dishController.update);
 dishRouter.delete('/:id', requirePermission('dish:write'), dishController.remove);
+dishRouter.put('/:id/model', requirePermission('asset:write'), validate(setDishModelSchema), dishController.setModel);
+dishRouter.delete('/:id/model', requirePermission('asset:write'), dishController.removeModel);
 dishRouter.patch('/:id/availability', requirePermission('dish:toggle_availability'), validate(toggleAvailabilitySchema), dishController.toggleAvailability);

@@ -1,5 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { existsSync, statSync } from 'fs';
+import path from 'path';
+
+// Dish photos and AR models ship as static files in the web app.
+const WEB_PUBLIC_DIR = path.resolve(__dirname, '../../web/public');
 
 const prisma = new PrismaClient();
 
@@ -61,10 +66,11 @@ async function main() {
 
   // Create categories
   const categoriesData = [
-    { name: 'Starters', slug: 'starters', description: 'Begin your culinary journey', sortOrder: 0 },
-    { name: 'Mains', slug: 'mains', description: 'Signature main courses', sortOrder: 1 },
-    { name: 'Drinks', slug: 'drinks', description: 'Beverages and cocktails', sortOrder: 2 },
-    { name: 'Desserts', slug: 'desserts', description: 'Sweet endings', sortOrder: 3 },
+    { name: 'Bakery & Cakes', slug: 'bakery', description: 'Baked in-house every morning. Tap AR to see them on your table.', sortOrder: 0 },
+    { name: 'Starters', slug: 'starters', description: 'Begin your culinary journey', sortOrder: 1 },
+    { name: 'Mains', slug: 'mains', description: 'Signature main courses', sortOrder: 2 },
+    { name: 'Drinks', slug: 'drinks', description: 'Beverages and cocktails', sortOrder: 3 },
+    { name: 'Desserts', slug: 'desserts', description: 'Sweet endings', sortOrder: 4 },
   ];
 
   const categories: Record<string, any> = {};
@@ -76,7 +82,7 @@ async function main() {
           restaurantId: restaurant.id,
         },
       },
-      update: {},
+      update: { name: cat.name, description: cat.description, sortOrder: cat.sortOrder },
       create: {
         ...cat,
         restaurantId: restaurant.id,
@@ -87,8 +93,100 @@ async function main() {
   console.log(`✅ Categories: ${Object.keys(categories).length} created`);
 
   // Create dishes with nutrition and allergens
-  const dishesData = [
+  type DishSeed = {
+    name: string;
+    slug: string;
+    description: string;
+    price: number;
+    prepTimeMin: number;
+    categorySlug: string;
+    isFeatured: boolean;
+    imageUrl?: string;
+    modelUrl?: string;
+    nutrition?: { calories: number; proteinG: number; carbsG: number; fatsG: number; fiberG?: number; sugarG?: number; sodiumMg?: number };
+    allergens: readonly ('CELERY' | 'GLUTEN' | 'CRUSTACEANS' | 'EGGS' | 'FISH' | 'LUPIN' | 'MILK' | 'MOLLUSCS' | 'MUSTARD' | 'NUTS' | 'PEANUTS' | 'SESAME' | 'SOYBEANS' | 'SULPHITES')[];
+    ingredients?: { name: string; isPrimary: boolean }[];
+  };
+
+  const dishesData: DishSeed[] = [
+    // Bakery & Cakes (photoreal CC0 scans from Poly Haven, viewable in AR)
+    {
+      name: 'Butter Croissant',
+      slug: 'butter-croissant',
+      description: 'Flaky, all-butter croissant with a crisp golden shell, baked fresh every morning',
+      price: 4.5,
+      prepTimeMin: 2,
+      categorySlug: 'bakery',
+      isFeatured: true,
+      imageUrl: '/images/dishes/croissant.png',
+      modelUrl: '/models/dishes/croissant.glb',
+      nutrition: { calories: 270, proteinG: 5, carbsG: 31, fatsG: 14, fiberG: 1, sugarG: 6, sodiumMg: 310 },
+      allergens: ['GLUTEN', 'MILK', 'EGGS'] as const,
+      ingredients: [
+        { name: 'French butter', isPrimary: true },
+        { name: 'Wheat flour', isPrimary: true },
+        { name: 'Milk', isPrimary: false },
+        { name: 'Cane sugar', isPrimary: false },
+      ],
+    },
+    {
+      name: 'Carrot Cake',
+      slug: 'carrot-cake',
+      description: 'Spiced carrot and walnut sponge with cream-cheese frosting. A whole cake to share (serves 8)',
+      price: 42,
+      prepTimeMin: 5,
+      categorySlug: 'bakery',
+      isFeatured: false,
+      imageUrl: '/images/dishes/carrot-cake.png',
+      modelUrl: '/models/dishes/carrot-cake.glb',
+      nutrition: { calories: 410, proteinG: 5, carbsG: 48, fatsG: 22, fiberG: 2, sugarG: 34, sodiumMg: 290 },
+      allergens: ['GLUTEN', 'EGGS', 'MILK', 'NUTS'] as const,
+      ingredients: [
+        { name: 'Carrots', isPrimary: true },
+        { name: 'Walnuts', isPrimary: true },
+        { name: 'Cream cheese', isPrimary: false },
+        { name: 'Cinnamon', isPrimary: false },
+      ],
+    },
+    {
+      name: 'Strawberry Chocolate Cake',
+      slug: 'strawberry-chocolate-cake',
+      description: 'Dark chocolate sponge layered with ganache and crowned with fresh strawberries. A whole cake to share (serves 8)',
+      price: 46,
+      prepTimeMin: 5,
+      categorySlug: 'bakery',
+      isFeatured: true,
+      imageUrl: '/images/dishes/strawberry-chocolate-cake.png',
+      modelUrl: '/models/dishes/strawberry-chocolate-cake.glb',
+      nutrition: { calories: 450, proteinG: 6, carbsG: 52, fatsG: 24, fiberG: 3, sugarG: 38, sodiumMg: 210 },
+      allergens: ['GLUTEN', 'EGGS', 'MILK', 'SOYBEANS'] as const,
+      ingredients: [
+        { name: 'Dark chocolate', isPrimary: true },
+        { name: 'Fresh strawberries', isPrimary: true },
+        { name: 'Ganache', isPrimary: false },
+      ],
+    },
     // Starters
+    {
+      name: 'Seasonal Fruit Bowl',
+      slug: 'seasonal-fruit-bowl',
+      description: 'A rustic wooden bowl of the season’s best: crisp apples, Asian pears, lychees, kiwi and pomegranate. Made for sharing',
+      price: 16,
+      prepTimeMin: 5,
+      categorySlug: 'starters',
+      isFeatured: false,
+      imageUrl: '/images/dishes/fruit-bowl.png',
+      modelUrl: '/models/dishes/fruit-bowl.glb',
+      nutrition: { calories: 240, proteinG: 3, carbsG: 60, fatsG: 1, fiberG: 10, sugarG: 46, sodiumMg: 5 },
+      allergens: [] as const,
+      ingredients: [
+        { name: 'Apples', isPrimary: true },
+        { name: 'Asian pears', isPrimary: true },
+        { name: 'Lychees', isPrimary: false },
+        { name: 'Kiwi', isPrimary: false },
+        { name: 'Pomegranate', isPrimary: false },
+      ],
+    },
     {
       name: 'Bruschetta Classica',
       slug: 'bruschetta-classica',
@@ -215,6 +313,23 @@ async function main() {
     },
     // Drinks
     {
+      name: 'Afternoon Tea for Two',
+      slug: 'afternoon-tea-for-two',
+      description: 'A pot of loose-leaf Earl Grey served in our porcelain tea set, with milk, lemon and sugar for two',
+      price: 14,
+      prepTimeMin: 6,
+      categorySlug: 'drinks',
+      isFeatured: true,
+      imageUrl: '/images/dishes/afternoon-tea.png',
+      modelUrl: '/models/dishes/afternoon-tea.glb',
+      allergens: [] as const,
+      ingredients: [
+        { name: 'Earl Grey tea', isPrimary: true },
+        { name: 'Milk', isPrimary: false },
+        { name: 'Lemon', isPrimary: false },
+      ],
+    },
+    {
       name: 'Classic Mojito',
       slug: 'classic-mojito',
       description: 'Fresh mint, lime, white rum, sugar, and soda water',
@@ -235,11 +350,13 @@ async function main() {
     {
       name: 'Italian Lemonade',
       slug: 'italian-lemonade',
-      description: 'House-made lemonade with Sicilian lemons and a hint of rosemary',
-      price: 7.50,
+      description: 'House-made lemonade with Sicilian lemons and a hint of rosemary, served by the jug for the table',
+      price: 16,
       prepTimeMin: 3,
       categorySlug: 'drinks',
       isFeatured: false,
+      imageUrl: '/images/dishes/lemonade.png',
+      modelUrl: '/models/dishes/lemonade.glb',
       nutrition: { calories: 120, proteinG: 0, carbsG: 30, fatsG: 0, fiberG: 0, sugarG: 26, sodiumMg: 5 },
       allergens: [] as const,
       ingredients: [
@@ -304,10 +421,12 @@ async function main() {
     },
   ];
 
-  for (const dishData of dishesData) {
-    const { nutrition, allergens, ingredients, categorySlug, ...rest } = dishData;
+  let arDishes = 0;
+  for (const [index, dishData] of dishesData.entries()) {
+    const { nutrition, allergens, ingredients, categorySlug, modelUrl, ...rest } = dishData;
     const category = categories[categorySlug];
 
+    // Re-running the seed refreshes the demo menu (prices, photos, order).
     const dish = await prisma.dish.upsert({
       where: {
         slug_restaurantId: {
@@ -315,13 +434,28 @@ async function main() {
           restaurantId: restaurant.id,
         },
       },
-      update: {},
+      update: { ...rest, imageUrl: rest.imageUrl ?? null, sortOrder: index, categoryId: category.id },
       create: {
         ...rest,
+        sortOrder: index,
         categoryId: category.id,
         restaurantId: restaurant.id,
       },
     });
+
+    // AR model
+    const modelFile = modelUrl && path.join(WEB_PUBLIC_DIR, modelUrl);
+    if (modelUrl && modelFile && existsSync(modelFile)) {
+      const fileSizeBytes = statSync(modelFile).size;
+      await prisma.arAsset.upsert({
+        where: { dishId: dish.id },
+        update: { fileUrl: modelUrl, fileSizeBytes, status: 'READY' },
+        create: { fileUrl: modelUrl, fileSizeBytes, status: 'READY', dishId: dish.id, restaurantId: restaurant.id },
+      });
+      arDishes += 1;
+    } else if (modelUrl) {
+      console.warn(`⚠️  Model not found for ${rest.name}: ${modelFile}`);
+    }
 
     // Nutrition
     if (nutrition) {
@@ -367,7 +501,7 @@ async function main() {
     }
   }
 
-  console.log(`✅ Dishes: ${dishesData.length} created with nutrition, allergens, and ingredients`);
+  console.log(`✅ Dishes: ${dishesData.length} created with nutrition, allergens, and ingredients (${arDishes} with AR models)`);
 
   // Create tables
   const tablesData = [
@@ -394,17 +528,18 @@ async function main() {
       },
     });
 
-    // Create QR code for each table
-    const token = `${restaurant.slug}-${tableData.label.toLowerCase()}-${Math.random().toString(36).substring(2, 8)}`;
-    await prisma.qrCode.upsert({
-      where: { token },
-      update: {},
-      create: {
-        token,
-        tableId: table.id,
-        restaurantId: restaurant.id,
-      },
-    });
+    // Create a QR code for each table (keep the existing one on re-runs so printed codes keep working)
+    const existingQr = await prisma.qrCode.findFirst({ where: { tableId: table.id, isActive: true } });
+    if (!existingQr) {
+      const token = `${restaurant.slug}-${tableData.label.toLowerCase()}-${Math.random().toString(36).substring(2, 8)}`;
+      await prisma.qrCode.create({
+        data: {
+          token,
+          tableId: table.id,
+          restaurantId: restaurant.id,
+        },
+      });
+    }
   }
 
   console.log(`✅ Tables: ${tablesData.length} created with QR codes`);

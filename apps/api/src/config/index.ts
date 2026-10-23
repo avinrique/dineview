@@ -1,4 +1,4 @@
-export { env } from './env';
+export { env, webUrl } from './env';
 export { prisma, createTenantPrisma } from './database';
 export { redis, CACHE_TTL } from './redis';
 export { initSocket, getIO } from './socket';

@@ -1,4 +1,4 @@
-import { prisma } from '../../config';
+import { prisma, getIO } from '../../config';
 import { ApiError } from '../../utils/api-error';
 import type { CreateTableInput, UpdateTableInput } from '@dineview/shared';
 
@@ -11,7 +11,12 @@ export async function getAllTables(restaurantId: string) {
       tableSessions: {
         where: { status: 'ACTIVE' },
         take: 1,
-        include: { orders: { where: { status: { notIn: ['PAID', 'CANCELLED'] } } } },
+        include: {
+          orders: {
+            where: { status: { not: 'CANCELLED' } },
+            select: { id: true, status: true, total: true },
+          },
+        },
       },
     },
   });
@@ -67,4 +72,58 @@ export async function deleteTable(restaurantId: string, id: string) {
   }
 
   await prisma.table.delete({ where: { id } });
+}
+
+const IN_PROGRESS = ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'] as const;
+
+// Settles the table: served orders are marked paid and the session is closed,
+// so the next scan of this table's QR code starts a fresh session.
+export async function closeTableSession(restaurantId: string, tableId: string, userId: string) {
+  const session = await prisma.tableSession.findFirst({
+    where: { tableId, restaurantId, status: 'ACTIVE' },
+    include: { orders: true, table: true },
+  });
+  if (!session) throw ApiError.notFound('This table has no open session');
+
+  const inProgress = session.orders.filter((o) => (IN_PROGRESS as readonly string[]).includes(o.status));
+  if (inProgress.length > 0) {
+    throw ApiError.conflict(
+      `${inProgress.length} order(s) still in progress. Serve or cancel them before closing the table.`,
+    );
+  }
+
+  const served = session.orders.filter((o) => o.status === 'SERVED');
+  const now = new Date();
+
+  await prisma.$transaction([
+    ...served.map((o) =>
+      prisma.order.update({
+        where: { id: o.id },
+        data: {
+          status: 'PAID',
+          paidAt: now,
+          statusLogs: { create: { fromStatus: 'SERVED', toStatus: 'PAID', changedById: userId } },
+        },
+      }),
+    ),
+    prisma.tableSession.update({
+      where: { id: session.id },
+      data: { status: 'CLOSED', endedAt: now },
+    }),
+  ]);
+
+  const total = session.orders
+    .filter((o) => o.status !== 'CANCELLED')
+    .reduce((sum, o) => sum + Number(o.total), 0);
+
+  try {
+    const event = { sessionId: session.id, tableId, tableLabel: session.table.label };
+    const io = getIO();
+    io.to(`restaurant:${restaurantId}`).emit('session:closed', event);
+    io.to(`restaurant:${restaurantId}:table:${tableId}`).emit('session:closed', event);
+  } catch {
+    // Socket not initialized
+  }
+
+  return { sessionId: session.id, paidOrders: served.length, total: Math.round(total * 100) / 100 };
 }

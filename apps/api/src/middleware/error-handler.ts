@@ -27,6 +27,16 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
     });
   }
 
+  // body-parser errors (oversized upload, malformed JSON) carry their own status
+  const status = (err as any).status ?? (err as any).statusCode;
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    return res.status(status).json({
+      success: false,
+      message: status === 413 ? 'File too large' : err.message,
+      code: (err as any).type || 'BAD_REQUEST',
+    });
+  }
+
   return res.status(500).json({
     success: false,
     message: 'Internal server error',

@@ -1,6 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface SessionState {
+export type SessionEndReason = 'closed' | 'expired';
+
+export interface SessionState {
   sessionToken: string | null;
   restaurantId: string | null;
   restaurantName: string | null;
@@ -14,9 +16,11 @@ interface SessionState {
     primaryColor: string;
     secondaryColor: string;
   } | null;
+  /** Why the last session ended, so the customer sees a sensible message. */
+  endedReason: SessionEndReason | null;
 }
 
-const initialState: SessionState = {
+export const initialSessionState: SessionState = {
   sessionToken: null,
   restaurantId: null,
   restaurantName: null,
@@ -25,11 +29,12 @@ const initialState: SessionState = {
   sessionId: null,
   currency: 'USD',
   settings: null,
+  endedReason: null,
 };
 
 const sessionSlice = createSlice({
   name: 'session',
-  initialState,
+  initialState: initialSessionState,
   reducers: {
     setSession: (state, action: PayloadAction<{
       sessionToken: string;
@@ -46,10 +51,15 @@ const sessionSlice = createSlice({
       state.tableId = table.id;
       state.tableLabel = table.label;
       state.sessionId = session.id;
+      state.endedReason = null;
     },
-    clearSession: () => initialState,
+    endSession: (_state, action: PayloadAction<SessionEndReason>) => ({
+      ...initialSessionState,
+      endedReason: action.payload,
+    }),
+    clearSession: () => initialSessionState,
   },
 });
 
-export const { setSession, clearSession } = sessionSlice.actions;
+export const { setSession, endSession, clearSession } = sessionSlice.actions;
 export default sessionSlice.reducer;

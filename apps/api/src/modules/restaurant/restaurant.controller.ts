@@ -16,9 +16,17 @@ export async function get(req: AuthRequest, res: Response, next: NextFunction) {
 
 export async function update(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    const current = await prisma.restaurant.findUnique({ where: { id: req.user!.restaurantId! } });
+    if (!current) throw ApiError.notFound('Restaurant not found');
+
+    // Merge settings so a partial update doesn't wipe keys the form doesn't show
+    const { settings, ...rest } = req.body;
     const restaurant = await prisma.restaurant.update({
-      where: { id: req.user!.restaurantId! },
-      data: req.body,
+      where: { id: current.id },
+      data: {
+        ...rest,
+        ...(settings ? { settings: { ...((current.settings as object) || {}), ...settings } } : {}),
+      },
     });
     sendSuccess(res, { data: restaurant, message: 'Restaurant updated' });
   } catch (error) { next(error); }

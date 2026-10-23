@@ -47,3 +47,12 @@ export async function remove(req: AuthRequest, res: Response, next: NextFunction
     next(error);
   }
 }
+
+export async function closeSession(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const result = await tableService.closeTableSession(req.user!.restaurantId!, req.params.id as string, req.user!.id);
+    sendSuccess(res, { data: result, message: 'Table closed' });
+  } catch (error) {
+    next(error);
+  }
+}

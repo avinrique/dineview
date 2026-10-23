@@ -12,3 +12,4 @@ coverage/
 apps/api/.env
 apps/web/.env.local
 certs/
+apps/api/uploads/

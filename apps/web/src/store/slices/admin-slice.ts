@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface AdminState {
+export interface AdminState {
   accessToken: string | null;
   refreshToken: string | null;
   user: {
@@ -10,10 +10,12 @@ interface AdminState {
     lastName: string;
     role: string;
     restaurantId: string | null;
+    restaurantName?: string | null;
+    currency?: string;
   } | null;
 }
 
-const initialState: AdminState = {
+export const initialAdminState: AdminState = {
   accessToken: null,
   refreshToken: null,
   user: null,
@@ -21,7 +23,7 @@ const initialState: AdminState = {
 
 const adminSlice = createSlice({
   name: 'admin',
-  initialState,
+  initialState: initialAdminState,
   reducers: {
     setCredentials: (state, action: PayloadAction<{
       accessToken: string;
@@ -32,13 +34,19 @@ const adminSlice = createSlice({
       state.refreshToken = action.payload.refreshToken;
       state.user = action.payload.user;
     },
-    clearCredentials: () => initialState,
+    clearCredentials: () => initialAdminState,
     updateTokens: (state, action: PayloadAction<{ accessToken: string; refreshToken: string }>) => {
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
     },
+    setRestaurantInfo: (state, action: PayloadAction<{ restaurantName: string; currency: string }>) => {
+      if (state.user) {
+        state.user.restaurantName = action.payload.restaurantName;
+        state.user.currency = action.payload.currency;
+      }
+    },
   },
 });
 
-export const { setCredentials, clearCredentials, updateTokens } = adminSlice.actions;
+export const { setCredentials, clearCredentials, updateTokens, setRestaurantInfo } = adminSlice.actions;
 export default adminSlice.reducer;

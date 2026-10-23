@@ -1,15 +1,33 @@
-import { prisma } from '../../config';
+import { prisma, env, getIO } from '../../config';
 import { ApiError } from '../../utils/api-error';
 import { signSessionToken } from '../../utils/crypto';
 
-export async function handleQrScan(qrToken: string) {
-  const qrCode = await prisma.qrCode.findUnique({
-    where: { token: qrToken },
-    include: {
-      table: true,
-      restaurant: true,
+// `/scan/demo` opens the first active table of the demo restaurant so the
+// landing page can offer a one-tap demo without a printed QR code.
+async function findDemoQr() {
+  if (!env.DEMO_RESTAURANT_SLUG) return null;
+  return prisma.qrCode.findFirst({
+    where: {
+      isActive: true,
+      restaurant: { slug: env.DEMO_RESTAURANT_SLUG },
+      table: { isActive: true },
     },
+    orderBy: { table: { label: 'asc' } },
+    include: { table: true, restaurant: true },
   });
+}
+
+export async function handleQrScan(qrToken: string) {
+  const qrCode =
+    qrToken === 'demo'
+      ? await findDemoQr()
+      : await prisma.qrCode.findUnique({
+          where: { token: qrToken },
+          include: {
+            table: true,
+            restaurant: true,
+          },
+        });
 
   if (!qrCode || !qrCode.isActive) {
     throw ApiError.notFound('Invalid or inactive QR code');
@@ -37,6 +55,16 @@ export async function handleQrScan(qrToken: string) {
         guestCount: 1,
       },
     });
+
+    try {
+      getIO().to(`restaurant:${qrCode.restaurantId}`).emit('session:started', {
+        sessionId: session.id,
+        tableId: qrCode.tableId,
+        tableLabel: qrCode.table.label,
+      });
+    } catch {
+      // Socket not initialized
+    }
   }
 
   // Increment scan count

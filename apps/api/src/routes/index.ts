@@ -12,6 +12,7 @@ import { assetRouter } from '../modules/asset/asset.routes';
 import { analyticsRouter } from '../modules/analytics/analytics.routes';
 import { restaurantRouter } from '../modules/restaurant/restaurant.routes';
 import { staffRouter } from '../modules/staff/staff.routes';
+import { uploadRouter } from '../modules/upload/upload.routes';
 
 export const apiRouter = Router();
 
@@ -28,3 +29,4 @@ apiRouter.use('/admin/assets', assetRouter);
 apiRouter.use('/admin/analytics', analyticsRouter);
 apiRouter.use('/admin/restaurant', restaurantRouter);
 apiRouter.use('/admin/staff', staffRouter);
+apiRouter.use('/admin/uploads', uploadRouter);

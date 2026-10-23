@@ -2,7 +2,7 @@ import rateLimit from 'express-rate-limit';
 
 export const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 100,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -12,9 +12,11 @@ export const globalLimiter = rateLimit({
   },
 });
 
+// Per client IP (see `trust proxy` in app.ts). Generous enough that a few
+// people behind one office NAT can try the demo logins.
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

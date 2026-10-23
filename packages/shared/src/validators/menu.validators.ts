@@ -1,9 +1,16 @@
 import { z } from 'zod';
 
+// Accepts absolute http(s) URLs and same-origin paths such as `/uploads/...`
+// (files uploaded through the API are served from a relative path).
+export const assetUrlSchema = z
+  .string()
+  .max(2000)
+  .refine((v) => v.startsWith('/') || /^https?:\/\//i.test(v), 'Must be a URL or an uploaded file path');
+
 export const createCategorySchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
-  imageUrl: z.string().url().optional(),
+  imageUrl: assetUrlSchema.nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
   isActive: z.boolean().optional().default(true),
 });
@@ -21,11 +28,11 @@ export const createDishSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   price: z.number().positive('Price must be positive'),
-  imageUrl: z.string().url().optional(),
+  imageUrl: assetUrlSchema.nullable().optional(),
   isAvailable: z.boolean().optional().default(true),
   isFeatured: z.boolean().optional().default(false),
   sortOrder: z.number().int().min(0).optional(),
-  prepTimeMin: z.number().int().min(1).max(180).optional(),
+  prepTimeMin: z.number().int().min(1).max(180).nullable().optional(),
   categoryId: z.string().min(1, 'Category is required'),
   nutrition: z.object({
     calories: z.number().min(0).optional(),
@@ -50,6 +57,11 @@ export const createDishSchema = z.object({
 
 export const updateDishSchema = createDishSchema.partial();
 
+export const setDishModelSchema = z.object({
+  fileUrl: assetUrlSchema,
+  fileSizeBytes: z.number().int().min(0),
+});
+
 export const toggleAvailabilitySchema = z.object({
   isAvailable: z.boolean(),
 });
@@ -58,3 +70,4 @@ export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 export type CreateDishInput = z.infer<typeof createDishSchema>;
 export type UpdateDishInput = z.infer<typeof updateDishSchema>;
+export type SetDishModelInput = z.infer<typeof setDishModelSchema>;

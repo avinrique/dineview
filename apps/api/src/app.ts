@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
 import { randomUUID } from 'crypto';
 import { env } from './config/env';
 import { logger } from './config/logger';
@@ -10,6 +11,10 @@ import { apiRouter } from './routes';
 
 export function createApp() {
   const app = express();
+
+  // The web app proxies /api to us, so the real client IP arrives in
+  // X-Forwarded-For. Without this every visitor shares one rate-limit bucket.
+  app.set('trust proxy', 'loopback');
 
   // Request ID
   app.use((req, _res, next) => {
@@ -38,6 +43,14 @@ export function createApp() {
     origin: env.CORS_ORIGIN.split(','),
     credentials: true,
   }));
+
+  // Uploaded dish photos / 3D models (cross-origin so model-viewer and <img>
+  // can load them whether they're reached directly or via the web proxy)
+  app.use(
+    '/uploads',
+    helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
+    express.static(path.resolve(env.UPLOAD_DIR), { maxAge: '7d', immutable: true, fallthrough: false }),
+  );
 
   // Body parsing
   app.use(express.json({ limit: '10mb' }));

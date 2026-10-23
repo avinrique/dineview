@@ -9,6 +9,13 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string(),
   JWT_SESSION_SECRET: z.string(),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  // Public URL of the web app, used when encoding QR codes. Falls back to the
+  // first CORS origin.
+  WEB_URL: z.string().optional(),
+  // When set, `/scan/demo` opens a table at this restaurant (landing-page demo).
+  DEMO_RESTAURANT_SLUG: z.string().optional(),
+  // Uploaded dish photos and 3D models are stored here and served at /uploads.
+  UPLOAD_DIR: z.string().default('./uploads'),
   S3_ENDPOINT: z.string().default('http://localhost:9000'),
   S3_ACCESS_KEY: z.string().default('dineview'),
   S3_SECRET_KEY: z.string().default('dineview_dev'),
@@ -28,3 +35,5 @@ function loadEnv(): Env {
 }
 
 export const env = loadEnv();
+
+export const webUrl = (env.WEB_URL || env.CORS_ORIGIN.split(',')[0] || '').trim().replace(/\/+$/, '');

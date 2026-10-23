@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { assetUrlSchema } from './menu.validators';
 
 export const updateRestaurantSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  logo: z.string().url().optional(),
+  logo: assetUrlSchema.nullable().optional(),
   address: z.string().max(500).optional(),
   currency: z.string().length(3).optional(),
   timezone: z.string().optional(),

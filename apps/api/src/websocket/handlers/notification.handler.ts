@@ -2,62 +2,60 @@ import { Server, Socket } from 'socket.io';
 import { randomUUID } from 'crypto';
 import type { ServerToClientEvents, ClientToServerEvents } from '@dineview/shared';
 import { logger } from '../../config/logger';
+import { getIdentity, isStaffOf } from '../identity';
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
+type NotificationKind = 'waiter_call' | 'bill_request';
+
+// Remember which table raised each notification so an acknowledgement from
+// staff can be relayed back to that table ("a waiter is on the way").
+const pending = new Map<string, { restaurantId: string; tableId: string; kind: NotificationKind }>();
+const PENDING_TTL_MS = 60 * 60 * 1000;
+
 export function handleNotificationEvents(io: TypedServer, socket: TypedSocket) {
-  socket.on('notification:waiter_call', (data) => {
+  const raise = (kind: NotificationKind) => () => {
+    // Table details come from the verified session token, not the payload.
+    const identity = getIdentity(socket);
+    if (identity?.kind !== 'guest') return;
+
     const notificationId = randomUUID();
-    logger.info({ ...data, notificationId }, 'Waiter call requested');
+    const { restaurantId, tableId, tableLabel, sessionId } = identity;
+    logger.info({ kind, restaurantId, tableLabel, notificationId }, 'Table notification');
 
-    // Extract restaurant ID from the rooms the socket is in
-    const rooms = Array.from(socket.rooms);
-    const tableRoom = rooms.find((r) => r.includes(':table:'));
-    if (!tableRoom) return;
+    pending.set(notificationId, { restaurantId, tableId, kind });
+    setTimeout(() => pending.delete(notificationId), PENDING_TTL_MS).unref();
 
-    const restaurantId = tableRoom.split(':')[1];
-
-    io.to(`restaurant:${restaurantId}:waiters`).emit('notification:waiter_call', {
+    io.to(`restaurant:${restaurantId}:waiters`).emit(`notification:${kind}`, {
       notificationId,
-      tableId: data.tableId,
-      tableLabel: data.tableLabel,
-      sessionId: data.sessionId,
+      tableId,
+      tableLabel,
+      sessionId,
       timestamp: new Date().toISOString(),
     });
-  });
+  };
 
-  socket.on('notification:bill_request', (data) => {
-    const notificationId = randomUUID();
-    logger.info({ ...data, notificationId }, 'Bill requested');
-
-    const rooms = Array.from(socket.rooms);
-    const tableRoom = rooms.find((r) => r.includes(':table:'));
-    if (!tableRoom) return;
-
-    const restaurantId = tableRoom.split(':')[1];
-
-    io.to(`restaurant:${restaurantId}:waiters`).emit('notification:bill_request', {
-      notificationId,
-      tableId: data.tableId,
-      tableLabel: data.tableLabel,
-      sessionId: data.sessionId,
-      timestamp: new Date().toISOString(),
-    });
-  });
+  socket.on('notification:waiter_call', raise('waiter_call'));
+  socket.on('notification:bill_request', raise('bill_request'));
 
   socket.on('notification:acknowledge', (data) => {
-    logger.info(data, 'Notification acknowledged');
+    const identity = getIdentity(socket);
+    const entry = pending.get(data.notificationId);
+    if (!entry || !isStaffOf(identity, entry.restaurantId) || identity?.kind !== 'staff') return;
 
-    // Broadcast acknowledgment to all restaurant rooms
-    const rooms = Array.from(socket.rooms);
-    const restaurantRoom = rooms.find((r) => r.startsWith('restaurant:') && !r.includes(':'));
-    if (!restaurantRoom) return;
+    pending.delete(data.notificationId);
+    logger.info({ notificationId: data.notificationId }, 'Notification acknowledged');
 
-    io.to(restaurantRoom).emit('notification:acknowledged', {
+    const event = {
       notificationId: data.notificationId,
-      acknowledgedBy: socket.id,
+      acknowledgedBy: identity.userId,
+      kind: entry.kind,
+      tableId: entry.tableId,
       timestamp: new Date().toISOString(),
-    });
+    };
+    // Dismiss on every staff screen, and tell the table someone is coming.
+    io.to(`restaurant:${entry.restaurantId}:waiters`).emit('notification:acknowledged', event);
+    io.to(`restaurant:${entry.restaurantId}:table:${entry.tableId}`).emit('notification:acknowledged', event);
   });
 }

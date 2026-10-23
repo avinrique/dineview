@@ -12,8 +12,13 @@ interface SessionInfo {
 }
 
 export async function createOrder(session: SessionInfo, input: CreateOrderInput) {
+  const tableSession = await prisma.tableSession.findUnique({ where: { id: session.sessionId } });
+  if (!tableSession || tableSession.status !== 'ACTIVE') {
+    throw ApiError.unauthorized('This table session has ended. Please scan the QR code again.');
+  }
+
   // Fetch dishes and validate
-  const dishIds = input.items.map((i) => i.dishId);
+  const dishIds = [...new Set(input.items.map((i) => i.dishId))];
   const dishes = await prisma.dish.findMany({
     where: {
       id: { in: dishIds },
@@ -127,7 +132,8 @@ export async function getAllOrders(
 ) {
   const where: any = { restaurantId };
   if (opts.status) {
-    where.status = opts.status;
+    const statuses = opts.status.split(',').map((s) => s.trim()).filter(Boolean);
+    where.status = statuses.length > 1 ? { in: statuses } : statuses[0];
   }
 
   const [orders, total] = await Promise.all([
@@ -258,6 +264,7 @@ export async function updateOrderStatus(
     };
     io.to(`restaurant:${restaurantId}`).emit('order:status_changed', event);
     io.to(`restaurant:${restaurantId}:table:${order.session.tableId}`).emit('order:status_changed', event);
+    io.to(`restaurant:${restaurantId}:kitchen`).emit('order:status_changed', event);
 
     // Invalidate menu cache if order completed
     if (input.status === 'PAID') {

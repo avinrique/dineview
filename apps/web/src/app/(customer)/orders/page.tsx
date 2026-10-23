@@ -1,15 +1,22 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Check, ReceiptText, ChefHat } from 'lucide-react';
+import { ORDER_STATE_LABELS } from '@dineview/shared';
 import { useGetSessionOrdersQuery } from '@/store/api/order-api';
-import { useSocket } from '@/hooks/use-socket';
 import { useSession } from '@/hooks/use-session';
-import { formatPrice, formatTime, getRelativeTime } from '@/lib/utils';
+import { formatPrice, getRelativeTime, shortOrderNumber, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ORDER_STATE_LABELS } from '@dineview/shared';
-import Link from 'next/link';
+
+const STEPS = ['PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'SERVED'] as const;
+const STEP_LABELS: Record<string, string> = {
+  PLACED: 'Sent',
+  ACCEPTED: 'Accepted',
+  PREPARING: 'Cooking',
+  READY: 'Ready',
+  SERVED: 'Served',
+};
 
 const statusVariants: Record<string, 'default' | 'info' | 'warning' | 'success' | 'danger'> = {
   PLACED: 'info',
@@ -21,128 +28,124 @@ const statusVariants: Record<string, 'default' | 'info' | 'warning' | 'success' 
   CANCELLED: 'danger',
 };
 
+function Progress({ status }: { status: string }) {
+  const current = STEPS.indexOf(status as (typeof STEPS)[number]);
+  const reached = status === 'PAID' ? STEPS.length - 1 : current;
+  return (
+    <div className="mb-4 flex items-start">
+      {STEPS.map((step, i) => {
+        const done = i <= reached;
+        return (
+          <div key={step} className="flex flex-1 flex-col items-center">
+            <div className="flex w-full items-center">
+              <div className={cn('h-0.5 flex-1', i === 0 ? 'opacity-0' : done ? 'bg-brand-500' : 'bg-gray-200')} />
+              <div
+                className={cn(
+                  'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white transition-colors',
+                  done ? 'bg-brand-500' : 'bg-gray-200',
+                  i === current && status !== 'SERVED' && 'ring-4 ring-brand-100',
+                )}
+              >
+                {done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+              </div>
+              <div
+                className={cn('h-0.5 flex-1', i === STEPS.length - 1 ? 'opacity-0' : i < reached ? 'bg-brand-500' : 'bg-gray-200')}
+              />
+            </div>
+            <span className={cn('mt-1 text-[10px] font-medium', done ? 'text-gray-900' : 'text-gray-400')}>
+              {STEP_LABELS[step]}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function OrdersPage() {
-  const router = useRouter();
-  const { currency, restaurantId, tableId } = useSession();
-  const { data, isLoading, refetch } = useGetSessionOrdersQuery(undefined, {
-    pollingInterval: 30000,
-  });
-  const { on, joinTable } = useSocket();
-
-  useEffect(() => {
-    if (restaurantId && tableId) {
-      joinTable(restaurantId, tableId);
-    }
-  }, [restaurantId, tableId, joinTable]);
-
-  useEffect(() => {
-    const unsub = on('order:status_changed', () => {
-      refetch();
-    });
-    return unsub;
-  }, [on, refetch]);
+  const { currency } = useSession();
+  // Socket pushes refresh this instantly; polling is a fallback for flaky networks.
+  const { data, isLoading } = useGetSessionOrdersQuery(undefined, { pollingInterval: 20000, refetchOnFocus: true });
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-[100dvh] items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   const orders = data?.data || [];
+  const tableTotal = orders
+    .filter((o: any) => o.status !== 'CANCELLED')
+    .reduce((sum: number, o: any) => sum + Number(o.total), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="bg-white shadow-sm sticky top-0 z-30">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-4">
-          <button onClick={() => router.push('/menu')} className="text-gray-600">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">Your Orders</h1>
+    <div className="min-h-[100dvh] bg-gray-50 pb-24">
+      <header className="sticky top-0 z-30 bg-white shadow-sm">
+        <div className="mx-auto max-w-lg px-4 py-4">
+          <h1 className="text-xl font-bold text-gray-900">My orders</h1>
+          {orders.length > 0 && (
+            <p className="text-sm text-gray-500">Table total so far: {formatPrice(tableTotal, currency)}</p>
+          )}
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
         {orders.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-5xl mb-4">📋</div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">No orders yet</h2>
-            <p className="text-gray-500 mb-4">Your orders will appear here</p>
-            <Link href="/menu" className="btn-primary">Browse Menu</Link>
+          <div className="py-16 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white ring-1 ring-gray-100">
+              <ReceiptText className="h-8 w-8 text-gray-300" />
+            </div>
+            <h2 className="mb-1 text-lg font-semibold text-gray-900">No orders yet</h2>
+            <p className="mb-5 text-gray-500">Orders you place will show up here with live updates.</p>
+            <Link href="/menu" className="btn-primary">Browse the menu</Link>
           </div>
         ) : (
           orders.map((order: any) => (
-            <div key={order.id} className="card p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div key={order.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+              <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <span className="font-semibold text-gray-900">#{order.orderNumber}</span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    {getRelativeTime(order.placedAt)}
-                  </span>
+                  <span className="font-semibold text-gray-900">Order #{shortOrderNumber(order.orderNumber)}</span>
+                  <span className="ml-2 text-sm text-gray-500">{getRelativeTime(order.placedAt)}</span>
                 </div>
                 <Badge variant={statusVariants[order.status] || 'default'}>
                   {(ORDER_STATE_LABELS as any)[order.status] || order.status}
                 </Badge>
               </div>
 
-              {/* Status timeline */}
-              {order.statusLogs?.length > 0 && (
-                <div className="flex gap-1 mb-3">
-                  {['PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'SERVED'].map((s) => {
-                    const reached = order.statusLogs.some((log: any) => log.toStatus === s);
-                    return (
-                      <div
-                        key={s}
-                        className={`h-1.5 flex-1 rounded-full ${
-                          reached ? 'bg-brand-500' : 'bg-gray-200'
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
+              {order.status === 'CANCELLED' ? (
+                <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">This order was cancelled. Please ask a waiter.</p>
+              ) : (
+                <Progress status={order.status} />
               )}
 
-              {/* Items */}
-              <div className="space-y-1">
+              {order.status === 'PREPARING' && (
+                <p className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-800">
+                  <ChefHat className="h-4 w-4" /> The kitchen is preparing your food
+                </p>
+              )}
+
+              <div className="space-y-1.5">
                 {order.items?.map((item: any) => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <span className="text-gray-700">
-                      {item.quantity}x {item.dish?.name}
+                      <span className="font-medium text-gray-900">{item.quantity}×</span> {item.dish?.name}
                     </span>
-                    <span className="text-gray-500">
-                      {formatPrice(Number(item.subtotal), currency)}
-                    </span>
+                    <span className="text-gray-500">{formatPrice(Number(item.subtotal), currency)}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t mt-3 pt-3 flex justify-between font-semibold">
+              {order.specialNotes && <p className="mt-2 text-xs italic text-gray-500">“{order.specialNotes}”</p>}
+
+              <div className="mt-3 flex justify-between border-t pt-3 font-semibold">
                 <span>Total</span>
-                <span className="text-brand-600">
-                  {formatPrice(Number(order.total), currency)}
-                </span>
+                <span>{formatPrice(Number(order.total), currency)}</span>
               </div>
             </div>
           ))
         )}
-      </div>
-
-      {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
-        <div className="max-w-lg mx-auto flex">
-          <Link href="/menu" className="flex-1 py-3 text-center text-sm text-gray-600 hover:text-brand-600">
-            Menu
-          </Link>
-          <Link href="/orders" className="flex-1 py-3 text-center text-sm font-semibold text-brand-600">
-            Orders
-          </Link>
-          <Link href="/actions" className="flex-1 py-3 text-center text-sm text-gray-600 hover:text-brand-600">
-            Actions
-          </Link>
-        </div>
       </div>
     </div>
   );

@@ -1,19 +1,23 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { ChevronLeft, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { useCart } from '@/hooks/use-cart';
 import { useSession } from '@/hooks/use-session';
 import { useCreateOrderMutation } from '@/store/api/order-api';
 import { useAppDispatch } from '@/store';
 import { addActiveOrder } from '@/store/slices/order-slice';
+import { notify } from '@/store/slices/ui-slice';
 import { formatPrice } from '@/lib/utils';
-import { useState } from 'react';
+import { DishImage } from '@/components/customer/dish-image';
 
 export default function CartPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { items, total, itemCount, orderNotes, updateQuantity, removeItem, setOrderNotes, clearCart } = useCart();
-  const { currency, settings } = useSession();
+  const { currency, settings, tableLabel } = useSession();
   const [createOrder, { isLoading }] = useCreateOrderMutation();
   const [error, setError] = useState<string | null>(null);
 
@@ -35,114 +39,105 @@ export default function CartPage() {
 
       dispatch(addActiveOrder(result.data.id));
       clearCart();
+      dispatch(notify('success', 'Order sent to the kitchen'));
       router.push('/orders');
     } catch (err: any) {
-      setError(err?.data?.message || 'Failed to place order');
+      setError(err?.data?.message || 'We couldn’t place your order. Please try again.');
     }
   }
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="flex min-h-[100dvh] items-center justify-center p-8">
         <div className="text-center">
-          <div className="text-6xl mb-4">🛒</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Cart is empty</h1>
-          <p className="text-gray-600 mb-6">Add some dishes from the menu</p>
-          <button onClick={() => router.push('/menu')} className="btn-primary">
-            Browse Menu
-          </button>
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-50">
+            <ShoppingBag className="h-9 w-9 text-brand-400" />
+          </div>
+          <h1 className="mb-2 text-2xl font-bold text-gray-900">Your order is empty</h1>
+          <p className="mb-6 text-gray-600">Add a few dishes from the menu.</p>
+          <Link href="/menu" className="btn-primary">Browse the menu</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-40">
-      <header className="bg-white shadow-sm sticky top-0 z-30">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-4">
-          <button onClick={() => router.back()} className="text-gray-600">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+    <div className="min-h-[100dvh] bg-gray-50 pb-56">
+      <header className="sticky top-0 z-30 bg-white shadow-sm">
+        <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3">
+          <button onClick={() => router.back()} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100" aria-label="Back">
+            <ChevronLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Your Cart ({itemCount})</h1>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Your order</h1>
+            <p className="text-xs text-gray-500">
+              {itemCount} {itemCount === 1 ? 'item' : 'items'} · Table {tableLabel}
+            </p>
+          </div>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <div className="mx-auto max-w-lg space-y-3 px-4 py-4">
         {items.map((item) => (
-          <div key={item.dishId} className="card p-4 flex items-center gap-4">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900">{item.name}</h3>
-              <p className="text-sm text-brand-600 font-medium">
-                {formatPrice(item.price, currency)}
-              </p>
+          <div key={item.dishId} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-gray-100">
+            <DishImage src={item.imageUrl} alt={item.name} className="h-16 w-16 shrink-0 rounded-xl" iconClassName="h-5 w-5" />
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-semibold text-gray-900">{item.name}</h3>
+              <p className="text-sm text-gray-500">{formatPrice(item.price * item.quantity, currency)}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 rounded-full bg-gray-100 p-0.5">
               <button
-                onClick={() => updateQuantity(item.dishId, item.quantity - 1)}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200"
+                onClick={() => (item.quantity === 1 ? removeItem(item.dishId) : updateQuantity(item.dishId, item.quantity - 1))}
+                className="flex h-8 w-8 items-center justify-center rounded-full active:bg-gray-200"
+                aria-label={item.quantity === 1 ? 'Remove' : 'Fewer'}
               >
-                -
+                {item.quantity === 1 ? <Trash2 className="h-4 w-4 text-red-500" /> : <Minus className="h-4 w-4" />}
               </button>
-              <span className="font-semibold w-6 text-center">{item.quantity}</span>
+              <span className="w-5 text-center text-sm font-semibold">{item.quantity}</span>
               <button
-                onClick={() => updateQuantity(item.dishId, item.quantity + 1)}
-                className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 hover:bg-brand-200"
+                onClick={() => updateQuantity(item.dishId, Math.min(20, item.quantity + 1))}
+                className="flex h-8 w-8 items-center justify-center rounded-full active:bg-gray-200"
+                aria-label="More"
               >
-                +
+                <Plus className="h-4 w-4" />
               </button>
             </div>
-            <button
-              onClick={() => removeItem(item.dishId)}
-              className="text-red-400 hover:text-red-600"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
           </div>
         ))}
 
-        {/* Order notes */}
-        <div className="card p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Special Notes</label>
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+          <label htmlFor="notes" className="mb-2 block text-sm font-medium text-gray-700">Notes for the kitchen</label>
           <textarea
+            id="notes"
             value={orderNotes}
             onChange={(e) => setOrderNotes(e.target.value)}
-            placeholder="Any special requests..."
-            className="input h-20 resize-none"
+            placeholder="Allergies, no onions, extra spicy…"
+            maxLength={1000}
+            className="input h-20 resize-none text-sm"
           />
         </div>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>
-        )}
+        {error && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</div>}
       </div>
 
-      {/* Order summary & Place order */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 p-4">
-        <div className="max-w-lg mx-auto space-y-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white px-4 pt-4 pb-safe">
+        <div className="mx-auto max-w-lg space-y-2">
           <div className="flex justify-between text-sm text-gray-600">
             <span>Subtotal</span>
             <span>{formatPrice(total, currency)}</span>
           </div>
           {taxRate > 0 && (
             <div className="flex justify-between text-sm text-gray-600">
-              <span>Tax ({(taxRate * 100).toFixed(2)}%)</span>
+              <span>Tax ({+(taxRate * 100).toFixed(3)}%)</span>
               <span>{formatPrice(tax, currency)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-lg border-t pt-2">
+          <div className="flex justify-between border-t pt-2 text-lg font-bold">
             <span>Total</span>
-            <span className="text-brand-600">{formatPrice(grandTotal, currency)}</span>
+            <span>{formatPrice(grandTotal, currency)}</span>
           </div>
-          <button
-            onClick={handlePlaceOrder}
-            disabled={isLoading}
-            className="btn-primary w-full py-3 text-base"
-          >
-            {isLoading ? 'Placing Order...' : `Place Order - ${formatPrice(grandTotal, currency)}`}
+          <button onClick={handlePlaceOrder} disabled={isLoading} className="btn-primary w-full py-3.5 text-base">
+            {isLoading ? 'Sending to kitchen…' : `Place order · ${formatPrice(grandTotal, currency)}`}
           </button>
         </div>
       </div>

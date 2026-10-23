@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface Notification {
+export interface Notification {
   id: string;
   type: 'success' | 'error' | 'info' | 'warning';
   message: string;
@@ -43,4 +43,11 @@ const uiSlice = createSlice({
 
 export const { toggleSidebar, setSidebarOpen, addNotification, removeNotification, setLoading } =
   uiSlice.actions;
+
+let nextId = 0;
+/** Toast helper: `dispatch(notify('success', 'Saved'))` */
+export function notify(type: Notification['type'], message: string, duration = 4000) {
+  nextId += 1;
+  return addNotification({ id: `n${Date.now()}-${nextId}`, type, message, duration });
+}
 export default uiSlice.reducer;

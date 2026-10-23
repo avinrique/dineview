@@ -4,7 +4,7 @@ export async function getDashboardStats(restaurantId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [todayOrders, todayRevenue, activeSessions, totalDishes] = await Promise.all([
+  const [todayOrders, todayRevenue, activeSessions, totalDishes, activeOrders] = await Promise.all([
     prisma.order.count({
       where: { restaurantId, placedAt: { gte: today } },
     }),
@@ -18,6 +18,9 @@ export async function getDashboardStats(restaurantId: string) {
     prisma.dish.count({
       where: { restaurantId, isAvailable: true },
     }),
+    prisma.order.count({
+      where: { restaurantId, status: { in: ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'] } },
+    }),
   ]);
 
   return {
@@ -25,28 +28,47 @@ export async function getDashboardStats(restaurantId: string) {
     todayRevenue: Number(todayRevenue._sum.total || 0),
     activeSessions,
     totalDishes,
+    activeOrders,
   };
 }
 
+function localDateKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Aggregated live from orders (the DailyAnalytics rollup table is never populated).
 export async function getRevenueOverTime(restaurantId: string, days: number) {
+  const span = Math.min(Math.max(days, 1), 365);
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
+  startDate.setDate(startDate.getDate() - (span - 1));
   startDate.setHours(0, 0, 0, 0);
 
-  return prisma.dailyAnalytics.findMany({
-    where: {
-      restaurantId,
-      date: { gte: startDate },
-    },
-    orderBy: { date: 'asc' },
-    select: {
-      date: true,
-      totalOrders: true,
-      totalRevenue: true,
-      avgOrderValue: true,
-      totalGuests: true,
-    },
+  const orders = await prisma.order.findMany({
+    where: { restaurantId, placedAt: { gte: startDate }, status: { not: 'CANCELLED' } },
+    select: { placedAt: true, total: true, sessionId: true },
   });
+
+  const buckets = new Map<string, { totalOrders: number; totalRevenue: number; sessions: Set<string> }>();
+  for (let i = 0; i < span; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    buckets.set(localDateKey(d), { totalOrders: 0, totalRevenue: 0, sessions: new Set() });
+  }
+  for (const order of orders) {
+    const bucket = buckets.get(localDateKey(order.placedAt));
+    if (!bucket) continue;
+    bucket.totalOrders += 1;
+    bucket.totalRevenue += Number(order.total);
+    bucket.sessions.add(order.sessionId);
+  }
+
+  return Array.from(buckets, ([date, b]) => ({
+    date,
+    totalOrders: b.totalOrders,
+    totalRevenue: Math.round(b.totalRevenue * 100) / 100,
+    avgOrderValue: b.totalOrders ? Math.round((b.totalRevenue / b.totalOrders) * 100) / 100 : 0,
+    totalGuests: b.sessions.size,
+  }));
 }
 
 export async function getTopDishes(restaurantId: string, limit: number) {

@@ -2,7 +2,7 @@ import { prisma, redis } from '../../config';
 import { getIO } from '../../config/socket';
 import { ApiError } from '../../utils/api-error';
 import { slugify } from '@dineview/shared';
-import type { CreateDishInput, UpdateDishInput } from '@dineview/shared';
+import type { CreateDishInput, UpdateDishInput, SetDishModelInput } from '@dineview/shared';
 
 export async function getAllDishes(
   restaurantId: string,
@@ -27,6 +27,7 @@ export async function getAllDishes(
         category: { select: { name: true } },
         nutrition: true,
         allergens: true,
+        arAsset: { select: { id: true, status: true } },
       },
     }),
     prisma.dish.count({ where }),
@@ -38,6 +39,12 @@ export async function getAllDishes(
 export async function createDish(restaurantId: string, input: CreateDishInput) {
   const slug = slugify(input.name);
   const { nutrition, allergens, ingredients, ...rest } = input;
+
+  const category = await prisma.category.findFirst({ where: { id: input.categoryId, restaurantId } });
+  if (!category) throw ApiError.badRequest('Category not found');
+
+  const clash = await prisma.dish.findFirst({ where: { slug, restaurantId } });
+  if (clash) throw ApiError.conflict('A dish with this name already exists');
 
   const dish = await prisma.dish.create({
     data: {
@@ -85,7 +92,16 @@ export async function updateDish(restaurantId: string, id: string, input: Update
 
   const { nutrition, allergens, ingredients, ...rest } = input;
   const data: any = { ...rest };
-  if (rest.name) data.slug = slugify(rest.name);
+  if (rest.name) {
+    data.slug = slugify(rest.name);
+    const clash = await prisma.dish.findFirst({ where: { slug: data.slug, restaurantId, id: { not: id } } });
+    if (clash) throw ApiError.conflict('A dish with this name already exists');
+  }
+
+  if (rest.categoryId) {
+    const category = await prisma.category.findFirst({ where: { id: rest.categoryId, restaurantId } });
+    if (!category) throw ApiError.badRequest('Category not found');
+  }
 
   const updated = await prisma.dish.update({
     where: { id },
@@ -123,7 +139,41 @@ export async function deleteDish(restaurantId: string, id: string) {
   const dish = await prisma.dish.findFirst({ where: { id, restaurantId } });
   if (!dish) throw ApiError.notFound('Dish not found');
 
+  const ordered = await prisma.orderItem.count({ where: { dishId: id } });
+  if (ordered > 0) {
+    // Past orders reference this dish; hide it instead of breaking order history.
+    await prisma.dish.update({ where: { id }, data: { isAvailable: false } });
+    await redis.del(`menu:${restaurantId}`);
+    return { archived: true };
+  }
+
   await prisma.dish.delete({ where: { id } });
+  await redis.del(`menu:${restaurantId}`);
+  return { archived: false };
+}
+
+export async function setDishModel(restaurantId: string, dishId: string, input: SetDishModelInput) {
+  const dish = await prisma.dish.findFirst({ where: { id: dishId, restaurantId } });
+  if (!dish) throw ApiError.notFound('Dish not found');
+
+  const asset = await prisma.arAsset.upsert({
+    where: { dishId },
+    update: { fileUrl: input.fileUrl, fileSizeBytes: input.fileSizeBytes, status: 'READY' },
+    create: {
+      dishId,
+      restaurantId,
+      fileUrl: input.fileUrl,
+      fileSizeBytes: input.fileSizeBytes,
+      status: 'READY',
+    },
+  });
+
+  await redis.del(`menu:${restaurantId}`);
+  return asset;
+}
+
+export async function removeDishModel(restaurantId: string, dishId: string) {
+  await prisma.arAsset.deleteMany({ where: { dishId, restaurantId } });
   await redis.del(`menu:${restaurantId}`);
 }
 

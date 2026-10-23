@@ -27,10 +27,9 @@ export function formatDate(date: Date | string): string {
   });
 }
 
-export function getRelativeTime(date: Date | string): string {
-  const now = new Date();
+export function getRelativeTime(date: Date | string, nowMs: number = Date.now()): string {
   const d = new Date(date);
-  const diffMs = now.getTime() - d.getTime();
+  const diffMs = nowMs - d.getTime();
   const diffMin = Math.floor(diffMs / 60000);
 
   if (diffMin < 1) return 'Just now';
@@ -38,4 +37,13 @@ export function getRelativeTime(date: Date | string): string {
   const diffHr = Math.floor(diffMin / 60);
   if (diffHr < 24) return `${diffHr}h ago`;
   return formatDate(date);
+}
+
+/** `ORD-261023-45DQ` → `45DQ`: short enough to say out loud at the table. */
+export function shortOrderNumber(orderNumber: string): string {
+  return orderNumber.split('-').pop() || orderNumber;
+}
+
+export function hasArModel(dish: { arAsset?: { status?: string } | null }): boolean {
+  return dish.arAsset?.status === 'READY';
 }

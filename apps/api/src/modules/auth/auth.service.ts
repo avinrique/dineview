@@ -13,6 +13,7 @@ import type { LoginInput } from '@dineview/shared';
 export async function login(input: LoginInput) {
   const user = await prisma.user.findFirst({
     where: { email: input.email },
+    include: { restaurant: { select: { name: true, currency: true } } },
   });
 
   if (!user) {
@@ -50,6 +51,8 @@ export async function login(input: LoginInput) {
       lastName: user.lastName,
       role: user.role,
       restaurantId: user.restaurantId,
+      restaurantName: user.restaurant?.name ?? null,
+      currency: user.restaurant?.currency ?? 'USD',
     },
     accessToken,
     refreshToken: rawRefreshToken,
@@ -111,7 +114,7 @@ export async function getMe(userId: string) {
       role: true,
       restaurantId: true,
       restaurant: {
-        select: { id: true, name: true, slug: true },
+        select: { id: true, name: true, slug: true, currency: true },
       },
     },
   });

@@ -14,4 +14,5 @@ tableRouter.get('/', requirePermission('table:read'), tableController.getAll);
 tableRouter.post('/', requirePermission('table:write'), validate(createTableSchema), tableController.create);
 tableRouter.get('/:id', requirePermission('table:read'), tableController.getById);
 tableRouter.patch('/:id', requirePermission('table:write'), validate(updateTableSchema), tableController.update);
+tableRouter.post('/:id/close-session', requirePermission('session:close'), tableController.closeSession);
 tableRouter.delete('/:id', requirePermission('table:write'), tableController.remove);

@@ -1,4 +1,4 @@
-import { prisma } from '../../config';
+import { prisma, webUrl } from '../../config';
 import { ApiError } from '../../utils/api-error';
 import { generateShortToken } from '../../utils/crypto';
 import QRCode from 'qrcode';
@@ -10,7 +10,7 @@ export async function generateQr(restaurantId: string, tableId: string) {
   if (!table) throw ApiError.notFound('Table not found');
 
   const token = generateShortToken(12);
-  const scanUrl = `${process.env.CORS_ORIGIN || 'http://localhost:3000'}/scan/${token}`;
+  const scanUrl = `${webUrl}/scan/${token}`;
 
   const qrCode = await prisma.qrCode.create({
     data: {

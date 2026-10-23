@@ -3,12 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useGetRestaurantQuery, useUpdateRestaurantMutation } from '@/store/api/admin-api';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useAppDispatch, useAppSelector } from '@/store';
+import { notify } from '@/store/slices/ui-slice';
+import { setRestaurantInfo } from '@/store/slices/admin-slice';
+import { hasPermission, type UserRole } from '@dineview/shared';
 
 export default function AdminSettingsPage() {
   const { data, isLoading } = useGetRestaurantQuery(undefined);
   const [updateRestaurant, { isLoading: updating }] = useUpdateRestaurantMutation();
   const [form, setForm] = useState({ name: '', address: '', currency: '', timezone: '', taxRate: '', enableAr: true });
-  const [success, setSuccess] = useState(false);
+  const dispatch = useAppDispatch();
+  const role = (useAppSelector((s) => s.admin.user?.role) || 'WAITER') as UserRole;
+  const canWrite = hasPermission(role, 'restaurant:write');
 
   useEffect(() => {
     if (data?.data) {
@@ -38,9 +44,11 @@ export default function AdminSettingsPage() {
           enableAr: form.enableAr,
         },
       }).unwrap();
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch {}
+      dispatch(setRestaurantInfo({ restaurantName: form.name, currency: form.currency }));
+      dispatch(notify('success', 'Settings saved'));
+    } catch (err: any) {
+      dispatch(notify('error', err?.data?.message || 'Could not save settings'));
+    }
   }
 
   if (isLoading) {
@@ -70,6 +78,10 @@ export default function AdminSettingsPage() {
                 <option value="EUR">EUR</option>
                 <option value="GBP">GBP</option>
                 <option value="INR">INR</option>
+                <option value="AED">AED</option>
+                <option value="AUD">AUD</option>
+                <option value="CAD">CAD</option>
+                <option value="SGD">SGD</option>
               </select>
             </div>
             <div>
@@ -88,16 +100,18 @@ export default function AdminSettingsPage() {
             </div>
             <div className="flex items-center gap-2 pt-6">
               <input type="checkbox" checked={form.enableAr} onChange={(e) => setForm({ ...form, enableAr: e.target.checked })} id="enableAr" />
-              <label htmlFor="enableAr" className="text-sm text-gray-700">Enable AR Menu</label>
+              <label htmlFor="enableAr" className="text-sm text-gray-700">Enable AR dish previews for guests</label>
             </div>
           </div>
         </div>
 
-        {success && <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm">Settings saved successfully!</div>}
-
-        <button type="submit" disabled={updating} className="btn-primary">
-          {updating ? 'Saving...' : 'Save Settings'}
-        </button>
+        {canWrite ? (
+          <button type="submit" disabled={updating} className="btn-primary">
+            {updating ? 'Saving…' : 'Save settings'}
+          </button>
+        ) : (
+          <p className="text-sm text-gray-500">Only the owner can change these settings.</p>
+        )}
       </form>
     </div>
   );

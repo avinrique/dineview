@@ -21,6 +21,22 @@ export const menuApi = apiSlice.injectEndpoints({
       }),
       providesTags: ['Dishes'],
     }),
+    getAdminDish: builder.query({
+      query: (id: string) => `/admin/dishes/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'Dishes', id }],
+    }),
+    setDishModel: builder.mutation({
+      query: ({ id, ...body }: { id: string; fileUrl: string; fileSizeBytes: number }) => ({
+        url: `/admin/dishes/${id}/model`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Dishes', 'Menu'],
+    }),
+    removeDishModel: builder.mutation({
+      query: (id: string) => ({ url: `/admin/dishes/${id}/model`, method: 'DELETE' }),
+      invalidatesTags: ['Dishes', 'Menu'],
+    }),
     createDish: builder.mutation({
       query: (body) => ({ url: '/admin/dishes', method: 'POST', body }),
       invalidatesTags: ['Dishes', 'Menu'],
@@ -69,6 +85,9 @@ export const {
   useGetDishDetailQuery,
   useGetCategoryBySlugQuery,
   useGetAdminDishesQuery,
+  useGetAdminDishQuery,
+  useSetDishModelMutation,
+  useRemoveDishModelMutation,
   useCreateDishMutation,
   useUpdateDishMutation,
   useDeleteDishMutation,

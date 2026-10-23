@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
+const API_ORIGIN = process.env.API_ORIGIN || 'http://127.0.0.1:4000';
+
 const nextConfig = {
   transpilePackages: ['@dineview/shared'],
+  // socket.io polls `/socket.io/?EIO=4…`; the default trailing-slash redirect breaks it
+  skipTrailingSlashRedirect: true,
   images: {
     remotePatterns: [
       {
@@ -10,12 +14,14 @@ const nextConfig = {
       },
     ],
   },
+  // Everything the browser needs from the API goes through this origin, so the
+  // app works from a phone over HTTPS (LAN cert or tunnel) with no CORS setup.
   async rewrites() {
     return [
-      {
-        source: '/api/:path*',
-        destination: 'http://127.0.0.1:4000/api/:path*',
-      },
+      { source: '/api/:path*', destination: `${API_ORIGIN}/api/:path*` },
+      { source: '/uploads/:path*', destination: `${API_ORIGIN}/uploads/:path*` },
+      { source: '/socket.io/', destination: `${API_ORIGIN}/socket.io/` },
+      { source: '/socket.io/:path*', destination: `${API_ORIGIN}/socket.io/:path*` },
     ];
   },
 };
