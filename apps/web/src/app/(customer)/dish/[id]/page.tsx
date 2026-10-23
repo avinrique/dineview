@@ -81,8 +81,13 @@ export default function DishDetailPage() {
         </button>
 
         {ar ? (
-          <div className="relative h-[52vh] max-h-[460px] min-h-[320px] bg-gradient-to-b from-stone-100 to-stone-50">
-            <ModelViewerAr modelUrl={dish.arAsset.fileUrl} poster={dish.imageUrl} alt={`${dish.name} in 3D`} />
+          <div className="relative h-[58vh] max-h-[520px] min-h-[360px] bg-stage pb-6">
+            <ModelViewerAr
+              modelUrl={dish.arAsset.fileUrl}
+              title={dish.name}
+              poster={dish.imageUrl}
+              alt={`${dish.name} in 3D`}
+            />
             <Link
               href={`/dish/${dish.id}/ar`}
               className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow backdrop-blur"
@@ -90,75 +95,74 @@ export default function DishDetailPage() {
             >
               <Expand className="h-4 w-4" />
             </Link>
-            <span className="absolute bottom-[4.5rem] left-1/2 -translate-x-1/2 rounded-full bg-black/40 px-3 py-1 text-[11px] text-white backdrop-blur">
-              Drag to rotate · pinch to zoom
-            </span>
           </div>
         ) : (
           <DishImage src={dish.imageUrl} alt={dish.name} className="h-64 w-full" iconClassName="h-12 w-12" />
         )}
       </div>
 
-      <div className="relative z-10 -mt-4 mx-auto max-w-lg space-y-6 rounded-t-3xl bg-gray-50 px-4 pt-6">
-        <div>
-          <div className="flex items-start justify-between gap-4">
-            <h1 className="text-2xl font-bold leading-tight text-gray-900">{dish.name}</h1>
-            <span className="whitespace-nowrap text-xl font-bold text-gray-900">{formatPrice(price, currency)}</span>
+      <div className="relative z-10 -mt-6 rounded-t-3xl bg-gray-50 pt-6">
+        <div className="mx-auto max-w-lg space-y-6 px-4">
+          <div>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="text-2xl font-bold leading-tight text-gray-900">{dish.name}</h1>
+              <span className="whitespace-nowrap text-xl font-bold text-gray-900">{formatPrice(price, currency)}</span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+              {ar && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white">
+                  <Box className="h-3 w-3" /> AR ready
+                </span>
+              )}
+              {dish.prepTimeMin && (
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="h-4 w-4" /> ~{dish.prepTimeMin} min
+                </span>
+              )}
+              {dish.isFeatured && <Badge variant="warning">Chef’s pick</Badge>}
+            </div>
+            {dish.description && <p className="mt-3 leading-relaxed text-gray-600">{dish.description}</p>}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
-            {ar && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white">
-                <Box className="h-3 w-3" /> AR ready
-              </span>
-            )}
-            {dish.prepTimeMin && (
-              <span className="inline-flex items-center gap-1">
-                <Clock className="h-4 w-4" /> ~{dish.prepTimeMin} min
-              </span>
-            )}
-            {dish.isFeatured && <Badge variant="warning">Chef’s pick</Badge>}
-          </div>
-          {dish.description && <p className="mt-3 leading-relaxed text-gray-600">{dish.description}</p>}
+  
+          {ar && <PhoneHandoffQr path={`/dish/${dish.id}`} />}
+  
+          {allergens.length > 0 && (
+            <div>
+              <h2 className="mb-2 font-semibold text-gray-900">Allergens</h2>
+              <div className="flex flex-wrap gap-2">
+                {allergens.map((a: any) => (
+                  <Badge key={a.id} variant="danger">{(ALLERGEN_LABELS as any)[a.allergen] ?? a.allergen}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+  
+          {ingredients.length > 0 && (
+            <div>
+              <h2 className="mb-2 font-semibold text-gray-900">Ingredients</h2>
+              <p className="text-sm leading-relaxed text-gray-600">
+                {ingredients.map((i: any) => i.name).join(' · ')}
+              </p>
+            </div>
+          )}
+  
+          {nutritionFacts.length > 0 && (
+            <div>
+              <h2 className="mb-3 font-semibold text-gray-900">Nutrition</h2>
+              <div className="grid grid-cols-4 gap-2">
+                {nutritionFacts.map((f) => (
+                  <div key={f.label} className="rounded-xl bg-white p-3 text-center ring-1 ring-gray-100">
+                    <p className="text-lg font-bold text-gray-900">
+                      {f.value}
+                      {f.unit}
+                    </p>
+                    <p className="text-[11px] text-gray-500">{f.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-
-        {ar && <PhoneHandoffQr path={`/dish/${dish.id}`} />}
-
-        {allergens.length > 0 && (
-          <div>
-            <h2 className="mb-2 font-semibold text-gray-900">Allergens</h2>
-            <div className="flex flex-wrap gap-2">
-              {allergens.map((a: any) => (
-                <Badge key={a.id} variant="danger">{(ALLERGEN_LABELS as any)[a.allergen] ?? a.allergen}</Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {ingredients.length > 0 && (
-          <div>
-            <h2 className="mb-2 font-semibold text-gray-900">Ingredients</h2>
-            <p className="text-sm leading-relaxed text-gray-600">
-              {ingredients.map((i: any) => i.name).join(' · ')}
-            </p>
-          </div>
-        )}
-
-        {nutritionFacts.length > 0 && (
-          <div>
-            <h2 className="mb-3 font-semibold text-gray-900">Nutrition</h2>
-            <div className="grid grid-cols-4 gap-2">
-              {nutritionFacts.map((f) => (
-                <div key={f.label} className="rounded-xl bg-white p-3 text-center ring-1 ring-gray-100">
-                  <p className="text-lg font-bold text-gray-900">
-                    {f.value}
-                    {f.unit}
-                  </p>
-                  <p className="text-[11px] text-gray-500">{f.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white px-4 pt-3 pb-safe">

@@ -19,7 +19,7 @@ export default function DishArPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-stone-50">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-stage">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -35,40 +35,41 @@ export default function DishArPage() {
     );
   }
 
-  const inCart = items.some((i) => i.dishId === dish.id);
+  const inCart = items.find((i) => i.dishId === dish.id);
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-gradient-to-b from-stone-100 to-stone-50">
-      <div className="z-30 flex shrink-0 items-center gap-3 px-3 py-3">
-        <button
-          onClick={() => router.back()}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow"
-          aria-label="Back"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div className="min-w-0">
-          <h1 className="truncate font-semibold text-gray-900">{dish.name}</h1>
-          <p className="text-sm text-gray-500">{formatPrice(Number(dish.price), currency)}</p>
-        </div>
-      </div>
+    <div className="fixed inset-0 flex flex-col bg-stage">
+      <button
+        onClick={() => router.back()}
+        className="absolute left-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow backdrop-blur"
+        aria-label="Back"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
 
       <div className="relative min-h-0 flex-1">
-        <ModelViewerAr modelUrl={dish.arAsset.fileUrl} poster={dish.imageUrl} alt={`${dish.name} 3D model`} />
+        <ModelViewerAr
+          modelUrl={dish.arAsset.fileUrl}
+          title={dish.name}
+          poster={dish.imageUrl}
+          alt={`${dish.name} 3D model`}
+        />
       </div>
 
-      <div className="shrink-0 space-y-3 bg-white px-4 pt-3 pb-safe shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
-        <p className="text-center text-xs text-gray-500">
-          Tap <span className="font-medium text-brand-600">View on your table</span>, then point your camera at the
-          table. The dish appears at its real size.
-        </p>
-        <button
-          onClick={() => addItem({ dishId: dish.id, name: dish.name, price: Number(dish.price), imageUrl: dish.imageUrl })}
-          className="btn-secondary flex w-full items-center justify-center gap-2 py-3"
-        >
-          {inCart ? <Check className="h-4 w-4 text-green-600" /> : <Plus className="h-4 w-4" />}
-          {inCart ? 'In your order: add another' : 'Add to order'}
-        </button>
+      <div className="shrink-0 px-3 pb-safe">
+        <div className="mx-auto flex max-w-lg items-center gap-3 rounded-3xl bg-white p-3 pl-4 shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-1 ring-black/5">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-semibold text-gray-900">{dish.name}</h1>
+            <p className="text-sm text-gray-500">{formatPrice(Number(dish.price), currency)}</p>
+          </div>
+          <button
+            onClick={() => addItem({ dishId: dish.id, name: dish.name, price: Number(dish.price), imageUrl: dish.imageUrl })}
+            className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition active:scale-[0.97]"
+          >
+            {inCart ? <Check className="h-4 w-4 text-green-400" /> : <Plus className="h-4 w-4" />}
+            {inCart ? `${inCart.quantity} in order · add` : 'Add to order'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -49,7 +49,7 @@ export function Toaster({ position = 'top' }: { position?: 'top' | 'bottom' }) {
     <div
       className={cn(
         'pointer-events-none fixed inset-x-0 z-[60] mx-auto flex max-w-md flex-col gap-2 px-4',
-        position === 'top' ? 'top-3' : 'bottom-24',
+        position === 'top' ? 'top-[max(env(safe-area-inset-top),0.75rem)]' : 'bottom-24',
       )}
     >
       {notifications.slice(-3).map((n) => (

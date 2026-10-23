@@ -11,13 +11,15 @@ interface DishImageProps {
 /** Dish photo, or a soft branded placeholder when the dish has none. */
 export function DishImage({ src, alt, className, iconClassName }: DishImageProps) {
   if (src) {
-    // Studio cut-outs (transparent PNGs) sit on a warm backdrop
+    // Transparent PNG cut-outs (renders of the 3D model) are shown whole on the
+    // warm stage backdrop; photos fill the frame.
+    const cutout = /\.png($|\?)/i.test(src);
     return (
       <img
         src={src}
         alt={alt}
         loading="lazy"
-        className={cn('bg-gradient-to-br from-stone-50 to-stone-200 object-cover', className)}
+        className={cn('bg-stage', cutout ? 'object-contain p-[7%] drop-shadow-md' : 'object-cover', className)}
       />
     );
   }

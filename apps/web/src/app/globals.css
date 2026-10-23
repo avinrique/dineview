@@ -23,6 +23,10 @@
   .pb-safe {
     padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
   }
+  /* Warm studio backdrop behind 3D dishes */
+  .bg-stage {
+    background: radial-gradient(120% 90% at 50% 38%, #ffffff 0%, #f7f2ec 55%, #ede5da 100%);
+  }
 }
 
 @layer components {

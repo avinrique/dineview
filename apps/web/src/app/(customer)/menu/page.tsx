@@ -50,17 +50,56 @@ function QuantityControl({ dish }: { dish: any }) {
   );
 }
 
+function ArBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'flex items-center gap-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm shadow-brand-600/30',
+        className,
+      )}
+    >
+      <Box className="h-3 w-3" /> AR
+    </span>
+  );
+}
+
+/** Horizontal showcase of the dishes guests can place on the table in AR. */
+function ArShowcase({ dishes, currency }: { dishes: any[]; currency: string }) {
+  return (
+    <section>
+      <h2 className="flex items-center gap-1.5 text-lg font-bold text-gray-900">
+        <Sparkles className="h-5 w-5 text-brand-500" /> See it on your table
+      </h2>
+      <p className="text-sm text-gray-500">Open a dish and place it in front of you at real size.</p>
+      <div className="-mx-4 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 scrollbar-none">
+        {dishes.map((dish) => (
+          <Link
+            key={dish.id}
+            href={`/dish/${dish.id}`}
+            className="w-[9.5rem] shrink-0 snap-start overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 transition active:scale-[0.98]"
+          >
+            <div className="relative h-32">
+              <DishImage src={dish.imageUrl} alt={dish.name} className="h-full w-full" />
+              <ArBadge className="absolute left-2 top-2" />
+            </div>
+            <div className="px-3 pb-3 pt-2">
+              <p className="truncate text-sm font-semibold text-gray-900">{dish.name}</p>
+              <p className="text-sm text-gray-500">{formatPrice(Number(dish.price), currency)}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function DishCard({ dish, currency }: { dish: any; currency: string }) {
   const ar = hasArModel(dish);
   return (
     <div className="flex gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-gray-100">
-      <Link href={`/dish/${dish.id}`} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl">
+      <Link href={`/dish/${dish.id}`} className="relative h-[6.5rem] w-[6.5rem] shrink-0 overflow-hidden rounded-xl">
         <DishImage src={dish.imageUrl} alt={dish.name} className="h-full w-full" />
-        {ar && (
-          <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-gray-900/75 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
-            <Box className="h-3 w-3" /> AR
-          </span>
-        )}
+        {ar && <ArBadge className="absolute left-1.5 top-1.5" />}
       </Link>
       <div className="flex min-w-0 flex-1 flex-col">
         <Link href={`/dish/${dish.id}`} className="min-w-0">
@@ -107,7 +146,7 @@ export default function MenuPage() {
       .filter((c) => c.dishes.length > 0);
   }, [categories, query]);
 
-  const arCount = categories.reduce((n, c) => n + (c.dishes || []).filter(hasArModel).length, 0);
+  const arDishes = useMemo(() => categories.flatMap((c) => (c.dishes || []).filter(hasArModel)), [categories]);
 
   // Highlight the category chip for the section currently in view
   useEffect(() => {
@@ -199,17 +238,7 @@ export default function MenuPage() {
       </header>
 
       <main className="mx-auto max-w-lg space-y-8 px-4 py-4">
-        {arEnabled && arCount > 0 && !query && (
-          <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-gray-900 to-gray-800 p-4 text-white">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10">
-              <Sparkles className="h-6 w-6 text-brand-300" />
-            </div>
-            <div className="text-sm">
-              <p className="font-semibold">See it before you order</p>
-              <p className="text-white/70">Dishes marked AR can be placed on your table at real size.</p>
-            </div>
-          </div>
-        )}
+        {arEnabled && arDishes.length > 0 && !query && <ArShowcase dishes={arDishes} currency={currency} />}
 
         {visibleCategories.length === 0 && (
           <p className="py-12 text-center text-gray-500">No dishes match “{query}”.</p>
