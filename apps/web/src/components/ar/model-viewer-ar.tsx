@@ -116,6 +116,8 @@ export function ModelViewerAr({
     }),
   );
 
+  // React 19 sets props that exist on the element (ar, exposure, src) as DOM
+  // properties, so they need real values: ar="" is falsy and disables AR.
   return (
     <div className={`relative ${className ?? 'w-full h-full'}`}>
       {createElement(
@@ -126,7 +128,7 @@ export function ModelViewerAr({
           alt,
           poster: poster || undefined,
           loading: 'eager',
-          ar: showArButton ? '' : undefined,
+          ar: showArButton,
           'ar-modes': 'webxr scene-viewer quick-look',
           'ar-scale': 'fixed',
           'ar-placement': 'floor',
@@ -137,7 +139,7 @@ export function ModelViewerAr({
           'environment-image': 'neutral',
           'shadow-intensity': '1',
           'shadow-softness': '0.8',
-          exposure: '1.05',
+          exposure: 1.05,
           'auto-rotate': autoRotate ? '' : undefined,
           'auto-rotate-delay': '0',
           'rotation-per-second': '20deg',
