@@ -68,15 +68,17 @@ function NoSession({ reason }: { reason: 'closed' | 'expired' | null }) {
       : 'Scan the QR code on your table to see the menu and order from your phone.';
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-b from-brand-50 to-white p-8">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-white p-8">
       <div className="max-w-sm text-center">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-white shadow-sm ring-1 ring-brand-100">
-          <QrCode className="h-10 w-10 text-brand-500" />
-        </div>
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">{title}</h1>
+        <span className="mx-auto mb-7 block h-24 w-24 rounded-full bg-ig p-[3px]">
+          <span className="flex h-full w-full items-center justify-center rounded-full border-[3px] border-white bg-gray-900">
+            <QrCode className="h-10 w-10 text-white" />
+          </span>
+        </span>
+        <h1 className="mb-2 font-display text-3xl font-medium text-gray-900">{title}</h1>
         <p className="mb-8 text-gray-600">{body}</p>
         {DEMO_ENABLED && (
-          <Link href="/scan/demo" className="btn-primary inline-flex items-center gap-2">
+          <Link href="/scan/demo" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-6 py-3 font-semibold text-white">
             <Sparkles className="h-4 w-4" />
             Open the demo table
           </Link>

@@ -46,7 +46,7 @@ DineView replaces paper menus and manual order-taking with a seamless digital wo
 
 1. **Scan** -- A customer scans the QR code on their table.
 2. **Browse** -- The full restaurant menu loads instantly (Redis-cached, 5-min TTL), complete with photos, allergen info, and nutrition details.
-3. **Preview in AR** -- On supported devices, customers can see a 3D model of a dish on their table via WebXR. Non-AR devices get an interactive 3D viewer as a fallback.
+3. **Preview in AR** -- Customers place a real-size 3D model of the dish on their table (WebXR on Android, AR Quick Look on iPhone). Other devices get an interactive 3D viewer.
 4. **Order** -- Items are added to a cart and submitted in a single tap.
 5. **Track** -- Real-time order status updates are pushed over WebSocket (Placed -> Accepted -> Preparing -> Ready -> Served -> Paid).
 6. **Manage** -- Restaurant staff use the admin panel for menu management, order tracking (kanban board), analytics, and more.
@@ -404,25 +404,32 @@ All endpoints are prefixed with `/api`.
 
 ## AR Integration
 
-Dish previews use Google's [`<model-viewer>`](https://modelviewer.dev) (`apps/web/src/components/ar/model-viewer-ar.tsx`):
+Dish previews use Google's [`<model-viewer>`](https://modelviewer.dev) for the 3D view
+(`apps/web/src/components/ar/model-viewer-ar.tsx`). "View on your table" then opens:
 
-| Device | What happens on "View on your table" |
+| Device | What happens |
 |---|---|
-| iPhone / iPad (Safari, Chrome) | AR Quick Look; the USDZ is generated on the fly from the GLB |
-| Android (Chrome + ARCore) | In-page WebXR, falling back to Google Scene Viewer |
+| Android (Chrome + ARCore) | DineView's own WebXR session (`webxr-ar.ts`): aim at the table, tap to place, and an anchor keeps the dish pinned there. Falls back to Google Scene Viewer if WebXR can't start |
+| iPhone / iPad (Safari, Chrome) | AR Quick Look with the dish's USDZ (`ArAsset.iosFileUrl`) |
+| In-app browsers (Instagram, WhatsApp…) | 3D only, with a hint to open the page in Safari/Chrome |
 | Desktop | Interactive 3D only, plus a QR code that opens the same dish on a phone |
 
-Models are authored at **real-world scale in meters** and shown with `ar-scale="fixed"`, so a croissant
-looks croissant-sized on the table.
+We don't use model-viewer's built-in WebXR mode: it drops the model ~1 m away, snaps it to the first
+plane it finds (often the floor) and doesn't anchor it, so dishes drift away.
+
+Models are authored at **real-world scale in meters** and shown at fixed scale, so a croissant looks
+croissant-sized on the table. The first AR launch on a device shows a short tips sheet.
 
 ### Models
 
-- Demo models live in `apps/web/public/models/dishes/*.glb` (photoreal CC0 scans from Poly Haven,
-  see `CREDITS.md` there); the seed links them to dishes.
-- Restaurants upload their own `.glb` (≤ 50 MB) and photos from **Admin → Menu → Edit dish**. Files go to
-  `POST /api/v1/admin/uploads` and are linked with `PUT /api/v1/admin/dishes/:id/model`.
+- Demo models live in `apps/web/public/models/dishes/` as `.glb` plus a pre-converted `.usdz` for iOS
+  (photoreal CC0 scans from Poly Haven, see `CREDITS.md` there); the seed links both.
+- Restaurants upload their own `.glb` (≤ 50 MB) and photos from **Admin → Menu → Edit dish**. The editor also
+  converts the model to USDZ in the browser and uploads both (`POST /api/v1/admin/uploads`), then links them
+  with `PUT /api/v1/admin/dishes/:id/model`.
+- Without a USDZ, Safari still converts on the fly but Chrome on iPhone can't show AR.
 - For best results: real-world scale, JPEG/PNG textures ≤ 1024 px, no Draco/KTX2 (keeps iOS Quick Look happy),
-  a few MB per model.
+  a few MB per model. USDZ must be served as `model/vnd.usdz+zip` (both the web app and API do this).
 
 ## WebSocket Events
 

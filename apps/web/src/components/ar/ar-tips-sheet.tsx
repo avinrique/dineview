@@ -22,26 +22,28 @@ export function markArTipsSeen() {
   }
 }
 
-function arViewerName() {
+function isIos() {
   const ua = navigator.userAgent;
-  if (/iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'Apple AR Quick Look';
-  if (/Android/.test(ua)) return 'Google’s AR viewer';
-  return null;
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 }
 
-const STEPS = [
-  { icon: ScanLine, title: 'Point your camera at the table', body: 'A plain, well-lit surface works best.' },
-  { icon: MoveHorizontal, title: 'Move your phone slowly', body: 'Sweep side to side until the dish lands on the table.' },
-  { icon: Hand, title: 'Drag to move, twist to turn', body: 'It stays where you put it, at its real size.' },
-];
+function stepsFor(ios: boolean) {
+  return [
+    { icon: ScanLine, title: 'Point your camera at the table', body: 'A plain, well-lit surface works best.' },
+    { icon: MoveHorizontal, title: 'Move your phone slowly', body: 'Sweep side to side so your phone can find the table.' },
+    ios
+      ? { icon: Hand, title: 'Drag to move, twist to turn', body: 'It stays where you put it, at its real size.' }
+      : { icon: Hand, title: 'Tap to place it, drag to turn', body: 'It stays pinned to the table, at its real size.' },
+  ];
+}
 
 /** One-time coaching shown before the camera opens, so first AR attempts succeed. */
 export function ArTipsSheet({ open, onStart, onClose }: { open: boolean; onStart: () => void; onClose: () => void }) {
-  const [viewer, setViewer] = useState<string | null>(null);
+  const [ios, setIos] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setViewer(arViewerName());
+    setIos(isIos());
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -60,7 +62,7 @@ export function ArTipsSheet({ open, onStart, onClose }: { open: boolean; onStart
         <p className="mt-1 text-sm text-gray-500">Three quick tips before your camera opens.</p>
 
         <ol className="mt-5 space-y-4">
-          {STEPS.map((step, i) => (
+          {stepsFor(ios).map((step, i) => (
             <li key={step.title} className="flex gap-3.5">
               <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <step.icon className="h-5 w-5" />
@@ -78,14 +80,14 @@ export function ArTipsSheet({ open, onStart, onClose }: { open: boolean; onStart
 
         <button
           onClick={onStart}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-500 py-3.5 font-semibold text-white shadow-lg shadow-brand-600/25 transition active:scale-[0.98] active:bg-brand-600"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-ig py-3.5 font-semibold text-white shadow-lg shadow-pink-500/25 transition active:scale-[0.98]"
         >
           <Camera className="h-5 w-5" /> Open camera
         </button>
         <button onClick={onClose} className="mt-1 w-full py-3 text-sm font-medium text-gray-500">
           Not now
         </button>
-        {viewer && <p className="pb-1 text-center text-[11px] text-gray-400">Opens {viewer}</p>}
+        {ios && <p className="pb-1 text-center text-[11px] text-gray-400">Opens Apple AR Quick Look</p>}
       </div>
     </div>,
     document.body,

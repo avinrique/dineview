@@ -24,6 +24,10 @@ const nextConfig = {
       { source: '/socket.io/:path*', destination: `${API_ORIGIN}/socket.io/:path*` },
     ];
   },
+  // iOS only opens AR Quick Look for USDZ served with its model type
+  async headers() {
+    return [{ source: '/:path(.+\\.usdz)', headers: [{ key: 'Content-Type', value: 'model/vnd.usdz+zip' }] }];
+  },
 };
 
 module.exports = nextConfig;

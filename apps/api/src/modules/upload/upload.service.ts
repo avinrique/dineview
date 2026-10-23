@@ -14,6 +14,7 @@ const FILE_TYPES: Record<string, { kind: 'image' | 'model'; maxBytes: number }> 
   avif: { kind: 'image', maxBytes: 10 * MB },
   gif: { kind: 'image', maxBytes: 10 * MB },
   glb: { kind: 'model', maxBytes: 50 * MB },
+  usdz: { kind: 'model', maxBytes: 50 * MB },
 };
 
 export const MAX_UPLOAD_BYTES = 50 * MB;

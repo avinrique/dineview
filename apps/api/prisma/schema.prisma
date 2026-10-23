@@ -210,6 +210,8 @@ model DishIngredient {
 model ArAsset {
   id            String        @id @default(cuid())
   fileUrl       String        @map("file_url")
+  /// USDZ for iOS AR Quick Look; Safari can convert the GLB itself, Chrome on iOS can't
+  iosFileUrl    String?       @map("ios_file_url")
   fileSizeBytes Int           @map("file_size_bytes")
   thumbnailUrl  String?       @map("thumbnail_url")
   scale         Json          @default("{\"x\":1,\"y\":1,\"z\":1}")

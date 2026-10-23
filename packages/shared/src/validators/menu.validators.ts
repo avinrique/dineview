@@ -60,6 +60,8 @@ export const updateDishSchema = createDishSchema.partial();
 export const setDishModelSchema = z.object({
   fileUrl: assetUrlSchema,
   fileSizeBytes: z.number().int().min(0),
+  /** USDZ for iOS AR Quick Look */
+  iosFileUrl: assetUrlSchema.nullable().optional(),
 });
 
 export const toggleAvailabilitySchema = z.object({

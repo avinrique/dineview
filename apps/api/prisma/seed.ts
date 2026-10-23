@@ -447,10 +447,13 @@ async function main() {
     const modelFile = modelUrl && path.join(WEB_PUBLIC_DIR, modelUrl);
     if (modelUrl && modelFile && existsSync(modelFile)) {
       const fileSizeBytes = statSync(modelFile).size;
+      // Pre-converted USDZ (same name) lets AR Quick Look open in Chrome on iOS too
+      const usdzUrl = modelUrl.replace(/\.glb$/, '.usdz');
+      const iosFileUrl = existsSync(path.join(WEB_PUBLIC_DIR, usdzUrl)) ? usdzUrl : null;
       await prisma.arAsset.upsert({
         where: { dishId: dish.id },
-        update: { fileUrl: modelUrl, fileSizeBytes, status: 'READY' },
-        create: { fileUrl: modelUrl, fileSizeBytes, status: 'READY', dishId: dish.id, restaurantId: restaurant.id },
+        update: { fileUrl: modelUrl, iosFileUrl, fileSizeBytes, status: 'READY' },
+        create: { fileUrl: modelUrl, iosFileUrl, fileSizeBytes, status: 'READY', dishId: dish.id, restaurantId: restaurant.id },
       });
       arDishes += 1;
     } else if (modelUrl) {

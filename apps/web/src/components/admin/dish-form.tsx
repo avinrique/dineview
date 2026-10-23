@@ -15,10 +15,11 @@ import { useUploadFileMutation } from '@/store/api/admin-api';
 import { useAppDispatch } from '@/store';
 import { notify } from '@/store/slices/ui-slice';
 import { ModelViewerAr } from '@/components/ar/model-viewer-ar';
+import { glbToUsdz } from '@/lib/glb-to-usdz';
 import { DishImage } from '@/components/customer/dish-image';
 import { cn } from '@/lib/utils';
 
-type Model = { fileUrl: string; fileSizeBytes: number } | null;
+type Model = { fileUrl: string; fileSizeBytes: number; iosFileUrl?: string | null } | null;
 
 function numOrUndefined(v: string) {
   return v.trim() === '' ? undefined : Number(v);
@@ -55,7 +56,9 @@ export function DishForm({ dish }: { dish?: any }) {
     allergens: (dish?.allergens || []).map((a: any) => a.allergen) as string[],
   });
   const [imageUrl, setImageUrl] = useState<string | null>(dish?.imageUrl ?? null);
-  const initialModel: Model = dish?.arAsset ? { fileUrl: dish.arAsset.fileUrl, fileSizeBytes: dish.arAsset.fileSizeBytes } : null;
+  const initialModel: Model = dish?.arAsset
+    ? { fileUrl: dish.arAsset.fileUrl, fileSizeBytes: dish.arAsset.fileSizeBytes, iosFileUrl: dish.arAsset.iosFileUrl }
+    : null;
   const [model, setModel] = useState<Model>(initialModel);
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -66,8 +69,15 @@ export function DishForm({ dish }: { dish?: any }) {
     setUploading(kind);
     try {
       const { data } = await uploadFile(file).unwrap();
-      if (kind === 'image') setImageUrl(data.url);
-      else setModel({ fileUrl: data.url, fileSizeBytes: data.fileSizeBytes });
+      if (kind === 'image') {
+        setImageUrl(data.url);
+      } else {
+        // Also store an iPhone (USDZ) copy; if conversion fails, Safari still converts on the fly
+        const usdz = await glbToUsdz(file)
+          .then((f) => uploadFile(f).unwrap())
+          .catch(() => null);
+        setModel({ fileUrl: data.url, fileSizeBytes: data.fileSizeBytes, iosFileUrl: usdz?.data.url ?? null });
+      }
     } catch (err: any) {
       setError(err?.data?.message || 'Upload failed');
     } finally {
@@ -232,7 +242,7 @@ export function DishForm({ dish }: { dish?: any }) {
       <div className="space-y-6">
         <div className="card space-y-3">
           <h2 className="font-semibold text-gray-900">Photo</h2>
-          <DishImage src={imageUrl} alt="Dish photo" className="aspect-[4/3] w-full rounded-xl" iconClassName="h-10 w-10" />
+          <DishImage src={imageUrl} alt={form.name.trim() || 'Dish photo'} className="aspect-[4/3] w-full rounded-xl" placeholderClassName="text-6xl" />
           <input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleUpload(e.target.files?.[0], 'image')} />
           <div className="flex gap-2">
             <button type="button" onClick={() => imageInput.current?.click()} disabled={uploading !== null} className="btn-secondary flex flex-1 items-center justify-center gap-2 text-sm">
@@ -257,7 +267,7 @@ export function DishForm({ dish }: { dish?: any }) {
           </div>
           {model ? (
             <div className="aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-b from-stone-100 to-stone-50">
-              <ModelViewerAr modelUrl={model.fileUrl} poster={imageUrl} showArButton={false} />
+              <ModelViewerAr modelUrl={model.fileUrl} iosSrc={model.iosFileUrl} poster={imageUrl} showArButton={false} />
             </div>
           ) : (
             <div className="flex aspect-[4/3] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400">

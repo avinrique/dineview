@@ -26,7 +26,7 @@ export const menuApi = apiSlice.injectEndpoints({
       providesTags: (_result, _error, id) => [{ type: 'Dishes', id }],
     }),
     setDishModel: builder.mutation({
-      query: ({ id, ...body }: { id: string; fileUrl: string; fileSizeBytes: number }) => ({
+      query: ({ id, ...body }: { id: string; fileUrl: string; fileSizeBytes: number; iosFileUrl?: string | null }) => ({
         url: `/admin/dishes/${id}/model`,
         method: 'PUT',
         body,

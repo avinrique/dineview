@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronLeft, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
+import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { useCart } from '@/hooks/use-cart';
 import { useSession } from '@/hooks/use-session';
 import { useCreateOrderMutation } from '@/store/api/order-api';
@@ -12,6 +12,7 @@ import { addActiveOrder } from '@/store/slices/order-slice';
 import { notify } from '@/store/slices/ui-slice';
 import { formatPrice } from '@/lib/utils';
 import { DishImage } from '@/components/customer/dish-image';
+import { PageHeader } from '@/components/customer/page-header';
 
 export default function CartPage() {
   const router = useRouter();
@@ -55,32 +56,20 @@ export default function CartPage() {
           </div>
           <h1 className="mb-2 text-2xl font-bold text-gray-900">Your order is empty</h1>
           <p className="mb-6 text-gray-600">Add a few dishes from the menu.</p>
-          <Link href="/menu" className="btn-primary">Browse the menu</Link>
+          <Link href="/menu" className="inline-block rounded-full bg-gray-900 px-6 py-3 font-semibold text-white">Browse the menu</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 pb-56">
-      <header className="sticky top-0 z-30 bg-white shadow-sm">
-        <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3">
-          <button onClick={() => router.back()} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100" aria-label="Back">
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">Your order</h1>
-            <p className="text-xs text-gray-500">
-              {itemCount} {itemCount === 1 ? 'item' : 'items'} · Table {tableLabel}
-            </p>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-[100dvh] bg-white pb-56">
+      <PageHeader back title="Your order" subtitle={`${itemCount} ${itemCount === 1 ? 'item' : 'items'} · Table ${tableLabel}`} />
 
-      <div className="mx-auto max-w-lg space-y-3 px-4 py-4">
+      <div className="mx-auto max-w-lg px-4 py-2">
         {items.map((item) => (
-          <div key={item.dishId} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-gray-100">
-            <DishImage src={item.imageUrl} alt={item.name} className="h-16 w-16 shrink-0 rounded-xl" iconClassName="h-5 w-5" />
+          <div key={item.dishId} className="flex items-center gap-3 border-b border-gray-100 py-3">
+            <DishImage src={item.imageUrl} alt={item.name} className="h-16 w-16 shrink-0 rounded-xl" placeholderClassName="text-2xl" />
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-semibold text-gray-900">{item.name}</h3>
               <p className="text-sm text-gray-500">{formatPrice(item.price * item.quantity, currency)}</p>
@@ -105,22 +94,22 @@ export default function CartPage() {
           </div>
         ))}
 
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-          <label htmlFor="notes" className="mb-2 block text-sm font-medium text-gray-700">Notes for the kitchen</label>
+        <div className="pt-5">
+          <label htmlFor="notes" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-400">Notes for the kitchen</label>
           <textarea
             id="notes"
             value={orderNotes}
             onChange={(e) => setOrderNotes(e.target.value)}
             placeholder="Allergies, no onions, extra spicy…"
             maxLength={1000}
-            className="input h-20 resize-none text-sm"
+            className="h-24 w-full resize-none rounded-2xl border-0 bg-gray-100 px-4 py-3 text-sm outline-none ring-gray-900 focus:ring-1"
           />
         </div>
 
         {error && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</div>}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white px-4 pt-4 pb-safe">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/95 px-4 pt-4 pb-safe backdrop-blur-xl">
         <div className="mx-auto max-w-lg space-y-2">
           <div className="flex justify-between text-sm text-gray-600">
             <span>Subtotal</span>
@@ -136,7 +125,11 @@ export default function CartPage() {
             <span>Total</span>
             <span>{formatPrice(grandTotal, currency)}</span>
           </div>
-          <button onClick={handlePlaceOrder} disabled={isLoading} className="btn-primary w-full py-3.5 text-base">
+          <button
+            onClick={handlePlaceOrder}
+            disabled={isLoading}
+            className="w-full rounded-full bg-gray-900 py-3.5 text-base font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+          >
             {isLoading ? 'Sending to kitchen…' : `Place order · ${formatPrice(grandTotal, currency)}`}
           </button>
         </div>

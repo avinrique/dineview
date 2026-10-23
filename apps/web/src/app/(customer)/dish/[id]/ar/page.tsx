@@ -50,6 +50,7 @@ export default function DishArPage() {
       <div className="relative min-h-0 flex-1">
         <ModelViewerAr
           modelUrl={dish.arAsset.fileUrl}
+          iosSrc={dish.arAsset.iosFileUrl}
           title={dish.name}
           poster={dish.imageUrl}
           alt={`${dish.name} 3D model`}

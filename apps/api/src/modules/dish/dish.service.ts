@@ -158,11 +158,17 @@ export async function setDishModel(restaurantId: string, dishId: string, input: 
 
   const asset = await prisma.arAsset.upsert({
     where: { dishId },
-    update: { fileUrl: input.fileUrl, fileSizeBytes: input.fileSizeBytes, status: 'READY' },
+    update: {
+      fileUrl: input.fileUrl,
+      iosFileUrl: input.iosFileUrl ?? null,
+      fileSizeBytes: input.fileSizeBytes,
+      status: 'READY',
+    },
     create: {
       dishId,
       restaurantId,
       fileUrl: input.fileUrl,
+      iosFileUrl: input.iosFileUrl ?? null,
       fileSizeBytes: input.fileSizeBytes,
       status: 'READY',
     },

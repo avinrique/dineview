@@ -49,7 +49,15 @@ export function createApp() {
   app.use(
     '/uploads',
     helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
-    express.static(path.resolve(env.UPLOAD_DIR), { maxAge: '7d', immutable: true, fallthrough: false }),
+    express.static(path.resolve(env.UPLOAD_DIR), {
+      maxAge: '7d',
+      immutable: true,
+      fallthrough: false,
+      // iOS only opens AR Quick Look for USDZ served with its model type
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.usdz')) res.setHeader('Content-Type', 'model/vnd.usdz+zip');
+      },
+    }),
   );
 
   // Body parsing

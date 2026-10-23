@@ -8,6 +8,7 @@ import { useSession } from '@/hooks/use-session';
 import { formatPrice, getRelativeTime, shortOrderNumber, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { PageHeader } from '@/components/customer/page-header';
 
 const STEPS = ['PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'SERVED'] as const;
 const STEP_LABELS: Record<string, string> = {
@@ -82,14 +83,10 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-[100dvh] bg-gray-50 pb-24">
-      <header className="sticky top-0 z-30 bg-white shadow-sm">
-        <div className="mx-auto max-w-lg px-4 py-4">
-          <h1 className="text-xl font-bold text-gray-900">My orders</h1>
-          {orders.length > 0 && (
-            <p className="text-sm text-gray-500">Table total so far: {formatPrice(tableTotal, currency)}</p>
-          )}
-        </div>
-      </header>
+      <PageHeader
+        title="My orders"
+        subtitle={orders.length > 0 ? `Table total so far ${formatPrice(tableTotal, currency)}` : undefined}
+      />
 
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
         {orders.length === 0 ? (
@@ -99,11 +96,11 @@ export default function OrdersPage() {
             </div>
             <h2 className="mb-1 text-lg font-semibold text-gray-900">No orders yet</h2>
             <p className="mb-5 text-gray-500">Orders you place will show up here with live updates.</p>
-            <Link href="/menu" className="btn-primary">Browse the menu</Link>
+            <Link href="/menu" className="inline-block rounded-full bg-gray-900 px-6 py-3 font-semibold text-white">Browse the menu</Link>
           </div>
         ) : (
           orders.map((order: any) => (
-            <div key={order.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+            <div key={order.id} className="rounded-3xl bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.04)] ring-1 ring-gray-100">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <span className="font-semibold text-gray-900">Order #{shortOrderNumber(order.orderNumber)}</span>

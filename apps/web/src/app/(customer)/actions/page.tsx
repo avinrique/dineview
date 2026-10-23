@@ -5,6 +5,7 @@ import { BellRing, CreditCard, CheckCircle2 } from 'lucide-react';
 import { useSession } from '@/hooks/use-session';
 import { useSocket } from '@/hooks/use-socket';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/customer/page-header';
 
 type Kind = 'waiter' | 'bill';
 
@@ -57,12 +58,7 @@ export default function ActionsPage() {
 
   return (
     <div className="min-h-[100dvh] bg-gray-50 pb-24">
-      <header className="sticky top-0 z-30 bg-white shadow-sm">
-        <div className="mx-auto max-w-lg px-4 py-4">
-          <h1 className="text-xl font-bold text-gray-900">Service</h1>
-          <p className="text-sm text-gray-500">Table {tableLabel}</p>
-        </div>
-      </header>
+      <PageHeader title="Service" subtitle={`Table ${tableLabel}`} />
 
       <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
         {cards.map(({ kind, icon: Icon, title, idle, sent: sentText, ack }) => {
@@ -73,7 +69,7 @@ export default function ActionsPage() {
               onClick={() => request(kind)}
               disabled={state !== 'idle' || !connected}
               className={cn(
-                'flex w-full items-center gap-4 rounded-2xl bg-white p-5 text-left shadow-sm ring-1 transition',
+                'flex w-full items-center gap-4 rounded-3xl bg-white p-5 text-left shadow-[0_2px_20px_rgba(0,0,0,0.04)] ring-1 transition',
                 state === 'acknowledged' ? 'ring-green-200 bg-green-50' : state === 'sent' ? 'ring-brand-200' : 'ring-gray-100 active:scale-[0.99]',
               )}
             >

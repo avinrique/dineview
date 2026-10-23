@@ -58,7 +58,7 @@ export default function AdminAnalyticsPage() {
               {dishes.map((item, idx) => (
                 <li key={item.dish?.id || idx} className="flex items-center gap-3">
                   <span className="w-5 text-sm font-semibold text-gray-400">{idx + 1}</span>
-                  <DishImage src={item.dish?.imageUrl} alt={item.dish?.name || ''} className="h-9 w-9 shrink-0 rounded-lg" iconClassName="h-4 w-4" />
+                  <DishImage src={item.dish?.imageUrl} alt={item.dish?.name || ''} className="h-9 w-9 shrink-0 rounded-lg" placeholderClassName="text-base" />
                   <div className="min-w-0 flex-1">
                     <div className="flex justify-between gap-2 text-sm">
                       <span className="truncate font-medium text-gray-900">{item.dish?.name || 'Removed dish'}</span>
