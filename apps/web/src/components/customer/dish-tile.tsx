@@ -13,10 +13,15 @@ const PALETTES = [
   'from-[#fffae6] to-[#f2e0a0]',
 ];
 
-export function paletteFor(key: string) {
+/** Stable pick from `list` for a key, so a category always gets the same colour. */
+export function pickFor<T>(key: string, list: readonly T[]): T {
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return PALETTES[h % PALETTES.length];
+  return list[h % list.length]!;
+}
+
+export function paletteFor(key: string) {
+  return pickFor(key, PALETTES);
 }
 
 interface DishTileProps {

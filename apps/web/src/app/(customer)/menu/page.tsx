@@ -1,55 +1,47 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { BellRing, Box, Grid3x3, LayoutList, Minus, Plus, Search, ShoppingBag, X } from 'lucide-react';
-import { ALLERGEN_LABELS } from '@dineview/shared';
+import { BellRing, Box, Clapperboard, Grid3x3, Search, ShoppingBag, X } from 'lucide-react';
 import { useGetMenuQuery } from '@/store/api/menu-api';
+import { useAppDispatch } from '@/store';
+import { setImmersive } from '@/store/slices/ui-slice';
 import { useSession } from '@/hooks/use-session';
 import { useCart } from '@/hooks/use-cart';
-import { useLikes } from '@/hooks/use-likes';
 import { formatPrice, hasArModel, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DishTile } from '@/components/customer/dish-tile';
 import { StoryRing } from '@/components/customer/story-ring';
-import { DoubleTapLike } from '@/components/customer/double-tap-like';
-import { LikeButton } from '@/components/customer/like-button';
 import { RestaurantAvatar } from '@/components/customer/restaurant-avatar';
+import { ReelsFeed } from '@/components/customer/reels-feed';
 
-type Tab = 'grid' | 'feed' | 'ar';
+type View = 'reels' | 'grid';
+type Tab = 'grid' | 'ar';
 type Dish = any;
 
-function QuantityControl({ dish }: { dish: Dish }) {
-  const { items, addItem, updateQuantity } = useCart();
-  const inCart = items.find((i) => i.dishId === dish.id);
+// Where the guest was, kept across trips to a dish page and back (Instagram
+// returns you to the same reel)
+const last: { view: View; reelId: string | null; categoryId: string | null } = {
+  view: 'reels',
+  reelId: null,
+  categoryId: null,
+};
 
-  if (!inCart) {
-    return (
-      <button
-        onClick={() => addItem({ dishId: dish.id, name: dish.name, price: Number(dish.price), imageUrl: dish.imageUrl })}
-        className="flex items-center gap-1 rounded-full bg-gray-900 px-3.5 py-1.5 text-[13px] font-semibold text-white transition active:scale-95"
-        aria-label={`Add ${dish.name}`}
-      >
-        <Plus className="h-4 w-4" /> Add
-      </button>
-    );
-  }
+function GridItem({
+  dish,
+  category,
+  ar,
+  currency,
+  onOpen,
+}: {
+  dish: Dish;
+  category: string;
+  ar: boolean;
+  currency: string;
+  onOpen: () => void;
+}) {
   return (
-    <div className="flex items-center gap-1 rounded-full bg-gray-900 p-0.5 text-white">
-      <button onClick={() => updateQuantity(dish.id, inCart.quantity - 1)} className="flex h-7 w-7 items-center justify-center rounded-full" aria-label="Remove one">
-        <Minus className="h-4 w-4" />
-      </button>
-      <span className="w-4 text-center text-sm font-bold">{inCart.quantity}</span>
-      <button onClick={() => updateQuantity(dish.id, inCart.quantity + 1)} className="flex h-7 w-7 items-center justify-center rounded-full" aria-label="Add one">
-        <Plus className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-function GridItem({ dish, category, ar, currency }: { dish: Dish; category: string; ar: boolean; currency: string }) {
-  return (
-    <Link href={`/dish/${dish.id}`} className="relative block aspect-square active:opacity-80">
+    <button onClick={onOpen} aria-label={dish.name} className="relative block aspect-square text-left active:opacity-80">
       <DishTile
         dish={dish}
         ar={ar}
@@ -63,52 +55,7 @@ function GridItem({ dish, category, ar, currency }: { dish: Dish; category: stri
           <span className="block text-[11px] opacity-90 drop-shadow">{formatPrice(Number(dish.price), currency)}</span>
         </span>
       )}
-    </Link>
-  );
-}
-
-function FeedPost({ dish, category, ar, currency, restaurantName }: { dish: Dish; category: string; ar: boolean; currency: string; restaurantName: string }) {
-  const { like } = useLikes();
-  const allergens = (dish.allergens || []).map((a: any) => (ALLERGEN_LABELS as any)[a.allergen] ?? a.allergen);
-  return (
-    <article className="border-b border-gray-100 bg-white pb-4">
-      <div className="flex items-center gap-2.5 px-3 py-2.5">
-        <StoryRing active={ar} className="h-9 w-9 shrink-0">
-          <RestaurantAvatar name={restaurantName} className="text-[11px]" />
-        </StoryRing>
-        <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-[13px] font-semibold text-gray-900">{restaurantName}</p>
-          <p className="truncate text-[11px] text-gray-500">{category}</p>
-        </div>
-        {ar && (
-          <Link href={`/dish/${dish.id}`} className="flex items-center gap-1 rounded-full bg-ig px-2.5 py-1 text-[11px] font-bold text-white">
-            <Box className="h-3.5 w-3.5" /> View in AR
-          </Link>
-        )}
-      </div>
-      <DoubleTapLike onLike={() => like(dish.id)}>
-        <DishTile dish={dish} ar={false} category={category} size="large" className="aspect-square w-full" />
-      </DoubleTapLike>
-      <div className="flex items-center gap-4 px-3 pt-3">
-        <LikeButton id={dish.id} />
-        {ar && (
-          <Link href={`/dish/${dish.id}`} aria-label="View in 3D and AR" className="-m-1 p-1">
-            <Box className="h-6 w-6 text-gray-900" />
-          </Link>
-        )}
-        <div className="ml-auto">
-          <QuantityControl dish={dish} />
-        </div>
-      </div>
-      <div className="px-3 pt-2 text-sm leading-snug">
-        <Link href={`/dish/${dish.id}`} className="font-semibold text-gray-900">
-          {dish.name}
-        </Link>{' '}
-        <span className="font-semibold text-gray-900">· {formatPrice(Number(dish.price), currency)}</span>
-        {dish.description && <p className="mt-0.5 line-clamp-2 text-gray-600">{dish.description}</p>}
-        {allergens.length > 0 && <p className="mt-1 text-xs text-gray-400">Contains {allergens.join(', ')}</p>}
-      </div>
-    </article>
+    </button>
   );
 }
 
@@ -116,10 +63,35 @@ export default function MenuPage() {
   const { restaurantName, tableLabel, currency, settings } = useSession();
   const { data, isLoading, error, refetch } = useGetMenuQuery(undefined, { refetchOnFocus: true });
   const { itemCount, total } = useCart();
+  const dispatch = useAppDispatch();
+  const [view, setView] = useState<View>(last.view);
+  const [reelId, setReelId] = useState<string | null>(last.reelId);
   const [tab, setTab] = useState<Tab>('grid');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(last.categoryId);
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    last.view = view;
+    last.categoryId = categoryId;
+  }, [view, categoryId]);
+
+  // Reels are full-screen and dark, bottom nav included
+  useEffect(() => {
+    dispatch(setImmersive(view === 'reels'));
+    return () => {
+      dispatch(setImmersive(false));
+    };
+  }, [view, dispatch]);
+
+  const rememberReel = useCallback((id: string) => {
+    last.reelId = id;
+  }, []);
+
+  function openReels(at: string | null = last.reelId) {
+    setReelId(at);
+    setView('reels');
+  }
 
   const arEnabled = settings?.enableAr !== false;
   const categories: any[] = useMemo(() => data?.data?.categories || [], [data]);
@@ -132,19 +104,23 @@ export default function MenuPage() {
   );
   const arCount = allDishes.filter((d) => d.ar).length;
 
+  const inCategory = useMemo(
+    () => allDishes.filter(({ dish }) => !categoryId || dish.categoryId === categoryId),
+    [allDishes, categoryId],
+  );
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return allDishes.filter(
+    return inCategory.filter(
       ({ dish, ar }) =>
-        (!categoryId || dish.categoryId === categoryId) &&
         (tab !== 'ar' || ar) &&
         (!q || dish.name.toLowerCase().includes(q) || dish.description?.toLowerCase().includes(q)),
     );
-  }, [allDishes, categoryId, tab, query]);
+  }, [inCategory, tab, query]);
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center">
+      <div className={cn('flex min-h-[100dvh] items-center justify-center', view === 'reels' && 'bg-black')}>
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -160,9 +136,27 @@ export default function MenuPage() {
   }
 
   const name = restaurantName || 'Menu';
-  const tabs: { id: Tab; icon: typeof Grid3x3; label: string }[] = [
+
+  if (view === 'reels') {
+    return (
+      <ReelsFeed
+        items={inCategory}
+        categories={categories}
+        categoryId={categoryId}
+        onCategory={setCategoryId}
+        startId={reelId}
+        onActive={rememberReel}
+        onBrowse={() => setView('grid')}
+        restaurantName={name}
+        tableLabel={tableLabel}
+        currency={currency}
+      />
+    );
+  }
+
+  const tabs: { id: Tab | 'reels'; icon: typeof Grid3x3; label: string }[] = [
     { id: 'grid', icon: Grid3x3, label: 'Grid' },
-    { id: 'feed', icon: LayoutList, label: 'Feed' },
+    { id: 'reels', icon: Clapperboard, label: 'Reels' },
     ...(arEnabled && arCount > 0 ? [{ id: 'ar' as Tab, icon: Box, label: 'In AR' }] : []),
   ];
 
@@ -228,17 +222,20 @@ export default function MenuPage() {
             )}
           </div>
           <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => openReels()}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-ig py-2 text-sm font-semibold text-white active:opacity-90"
+            >
+              <Clapperboard className="h-4 w-4" /> Watch reels
+            </button>
             {arEnabled && arCount > 0 && (
               <button
                 onClick={() => setTab('ar')}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-ig py-2 text-sm font-semibold text-white active:opacity-90"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gray-100 py-2 text-sm font-semibold text-gray-900 active:bg-gray-200"
               >
                 <Box className="h-4 w-4" /> View in AR
               </button>
             )}
-            <Link href="/orders" className="flex flex-1 items-center justify-center rounded-lg bg-gray-100 py-2 text-sm font-semibold text-gray-900 active:bg-gray-200">
-              My orders
-            </Link>
             <Link href="/actions" className="flex items-center justify-center rounded-lg bg-gray-100 px-3 active:bg-gray-200" aria-label="Call a waiter">
               <BellRing className="h-4 w-4 text-gray-900" />
             </Link>
@@ -272,7 +269,7 @@ export default function MenuPage() {
           {tabs.map(({ id, icon: Icon, label }) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
+              onClick={() => (id === 'reels' ? openReels() : setTab(id))}
               aria-label={label}
               aria-pressed={tab === id}
               className={cn(
@@ -295,15 +292,14 @@ export default function MenuPage() {
         {tab === 'grid' && (
           <div className="grid grid-cols-3 gap-0.5">
             {visible.map(({ dish, category, ar }) => (
-              <GridItem key={dish.id} dish={dish} category={category} ar={ar} currency={currency} />
-            ))}
-          </div>
-        )}
-
-        {tab === 'feed' && (
-          <div>
-            {visible.map(({ dish, category, ar }) => (
-              <FeedPost key={dish.id} dish={dish} category={category} ar={ar} currency={currency} restaurantName={name} />
+              <GridItem
+                key={dish.id}
+                dish={dish}
+                category={category}
+                ar={ar}
+                currency={currency}
+                onOpen={() => openReels(dish.id)}
+              />
             ))}
           </div>
         )}

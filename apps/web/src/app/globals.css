@@ -6,6 +6,8 @@
   :root {
     --brand-primary: #f97316;
     --brand-secondary: #1e293b;
+    /* Height of the guest bottom nav (CustomerNav), for content laid over it */
+    --guest-nav-h: calc(3.3rem + max(env(safe-area-inset-bottom), 0.75rem));
   }
 
   body {

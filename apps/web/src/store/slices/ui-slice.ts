@@ -11,12 +11,15 @@ interface UiState {
   isSidebarOpen: boolean;
   notifications: Notification[];
   isLoading: boolean;
+  /** Full-screen dark content (the menu's Reels): the bottom nav goes dark too. */
+  immersive: boolean;
 }
 
 const initialState: UiState = {
   isSidebarOpen: false,
   notifications: [],
   isLoading: false,
+  immersive: false,
 };
 
 const uiSlice = createSlice({
@@ -38,10 +41,13 @@ const uiSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
+    setImmersive: (state, action: PayloadAction<boolean>) => {
+      state.immersive = action.payload;
+    },
   },
 });
 
-export const { toggleSidebar, setSidebarOpen, addNotification, removeNotification, setLoading } =
+export const { toggleSidebar, setSidebarOpen, addNotification, removeNotification, setLoading, setImmersive } =
   uiSlice.actions;
 
 let nextId = 0;

@@ -28,8 +28,9 @@ export async function getFullMenu(restaurantId: string) {
           nutrition: true,
           allergens: true,
           ingredients: true,
+          // fileUrl: the menu's Reels play the live 3D model
           arAsset: {
-            select: { id: true, thumbnailUrl: true, status: true },
+            select: { id: true, fileUrl: true, iosFileUrl: true, thumbnailUrl: true, status: true },
           },
         },
       },

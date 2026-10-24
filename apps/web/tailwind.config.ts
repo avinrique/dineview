@@ -35,6 +35,12 @@ const config: Config = {
         'heart-burst': 'heart-burst 900ms ease-out forwards',
         'heart-pop': 'heart-pop 300ms ease-out',
         float: 'float 6s ease-in-out infinite',
+        'spin-slow': 'spin 6s linear infinite',
+        marquee: 'marquee 9s linear infinite',
+        // One turn of the reel's 3D dish (auto-rotate at 20deg/s)
+        'reel-progress': 'reel-progress 18s linear infinite',
+        'swipe-hint': 'swipe-hint 1.4s ease-in-out infinite',
+        'ken-burns': 'ken-burns 14s ease-in-out infinite alternate',
       },
       keyframes: {
         'toast-in': {
@@ -68,6 +74,22 @@ const config: Config = {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
+        'reel-progress': {
+          from: { transform: 'scaleX(0)' },
+          to: { transform: 'scaleX(1)' },
+        },
+        'swipe-hint': {
+          '0%, 100%': { transform: 'translateY(4px)', opacity: '0.6' },
+          '50%': { transform: 'translateY(-6px)', opacity: '1' },
+        },
+        'ken-burns': {
+          from: { transform: 'scale(1)' },
+          to: { transform: 'scale(1.08)' },
         },
       },
     },
