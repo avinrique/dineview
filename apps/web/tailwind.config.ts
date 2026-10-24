@@ -6,12 +6,17 @@ const config: Config = {
     extend: {
       fontFamily: {
         display: ['var(--font-display)', 'Georgia', 'serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       backgroundImage: {
         // Instagram-style story gradient, starting from the brand orange
         ig: 'linear-gradient(45deg, #fdba74 0%, #f97316 22%, #ec4899 58%, #a855f7 82%, #6366f1 100%)',
       },
       colors: {
+        // Landing page: warm black, flour cream, oven ember
+        ink: '#0b0a09',
+        cream: '#f3ede3',
+        ember: '#ff6b1a',
         brand: {
           50: '#fff7ed',
           100: '#ffedd5',
@@ -41,6 +46,7 @@ const config: Config = {
         'reel-progress': 'reel-progress 18s linear infinite',
         'swipe-hint': 'swipe-hint 1.4s ease-in-out infinite',
         'ken-burns': 'ken-burns 14s ease-in-out infinite alternate',
+        'scroll-line': 'scroll-line 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite',
       },
       keyframes: {
         'toast-in': {
@@ -90,6 +96,10 @@ const config: Config = {
         'ken-burns': {
           from: { transform: 'scale(1)' },
           to: { transform: 'scale(1.08)' },
+        },
+        'scroll-line': {
+          from: { transform: 'translateY(-100%)' },
+          to: { transform: 'translateY(200%)' },
         },
       },
     },
