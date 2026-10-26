@@ -8,6 +8,7 @@ import { useCart } from '@/hooks/use-cart';
 import { useSession } from '@/hooks/use-session';
 import { formatPrice, hasArModel } from '@/lib/utils';
 import { ModelViewerAr } from '@/components/ar/model-viewer-ar';
+import { DishFacts, factsFor } from '@/components/customer/dish-facts';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function DishArPage() {
@@ -56,7 +57,9 @@ export default function DishArPage() {
           title={dish.name}
           poster={dish.imageUrl}
           alt={`${dish.name} 3D model`}
+          facts={factsFor(dish)}
         />
+        <DishFacts facts={factsFor(dish)} placement="below" align="right" className="absolute bottom-32 right-3 top-3 z-20" />
       </div>
 
       <div className="shrink-0 px-3 pb-safe">

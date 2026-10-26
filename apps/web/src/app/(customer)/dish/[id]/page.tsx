@@ -15,6 +15,7 @@ import { ModelViewerAr } from '@/components/ar/model-viewer-ar';
 import { PhoneHandoffQr } from '@/components/ar/phone-handoff-qr';
 import { DishTile } from '@/components/customer/dish-tile';
 import { DoubleTapLike } from '@/components/customer/double-tap-like';
+import { factsFor } from '@/components/customer/dish-facts';
 import { LikeButton } from '@/components/customer/like-button';
 import { NutritionPanel, hasNutrition } from '@/components/customer/nutrition';
 
@@ -102,6 +103,7 @@ export default function DishDetailPage() {
                 title={dish.name}
                 poster={dish.imageUrl}
                 alt={`${dish.name} in 3D`}
+                facts={factsFor(dish)}
               />
             </div>
           ) : (

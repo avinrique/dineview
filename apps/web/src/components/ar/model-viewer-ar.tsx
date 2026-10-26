@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import { Box, Ruler, Smartphone } from 'lucide-react';
 import { ArTipsSheet, hasSeenArTips, markArTipsSeen } from '@/components/ar/ar-tips-sheet';
 import { DishArOverlay } from '@/components/ar/dish-ar-overlay';
+import type { DishFactsData } from '@/components/customer/dish-facts';
 import type { DishArSession, DishArStatus } from '@/components/ar/webxr-ar';
 
 interface ModelViewerArProps {
@@ -22,6 +23,8 @@ interface ModelViewerArProps {
   arLabel?: string;
   /** Show the dish's real-world size under the model. */
   showSize?: boolean;
+  /** Nutrition and ingredients the guest can open during in-browser AR. */
+  facts?: DishFactsData;
   autoRotate?: boolean;
   className?: string;
 }
@@ -77,6 +80,7 @@ export function ModelViewerAr({
   showArButton = true,
   arLabel = 'View on your table',
   showSize = true,
+  facts,
   autoRotate = true,
   className,
 }: ModelViewerArProps) {
@@ -299,6 +303,7 @@ export function ModelViewerAr({
           active={xrActive}
           status={xrStatus}
           title={title}
+          facts={facts}
           onClose={() => sessionRef.current?.end()}
           onReposition={() => sessionRef.current?.reposition()}
           onRotate={(r) => sessionRef.current?.rotate(r)}

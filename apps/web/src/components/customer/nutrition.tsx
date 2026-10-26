@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-interface NutritionRecord {
+export interface NutritionRecord {
   calories?: number | null;
   proteinG?: number | null;
   carbsG?: number | null;
@@ -30,28 +30,8 @@ export function hasNutrition(n: NutritionRecord | null | undefined) {
   return factsOf(n) != null;
 }
 
-/** One line of calories and macros, for the swipe view. */
-export function MacroRow({ nutrition, className }: { nutrition: NutritionRecord | null | undefined; className?: string }) {
-  const facts = factsOf(nutrition);
-  if (!facts) return null;
-  const cells = [
-    ...(facts.kcal != null ? [{ label: 'Kcal', value: String(facts.kcal), accent: true }] : []),
-    ...facts.macros.slice(0, 3).map((m) => ({ label: m.label, value: `${m.value} g`, accent: false })),
-  ];
-  return (
-    <dl className={cn('grid border-y border-cream/10', className)} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
-      {cells.map((c, i) => (
-        <div key={c.label} className={cn('py-2', i > 0 && 'border-l border-cream/10 pl-3')}>
-          <dt className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-cream/45">{c.label}</dt>
-          <dd className={cn('mt-0.5 font-mono text-[15px] tabular-nums', c.accent ? 'text-ember' : 'text-cream')}>{c.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-/** Calories in large type with a bar per macro, for the dish page. */
-export function NutritionPanel({ nutrition }: { nutrition: NutritionRecord | null | undefined }) {
+/** Calories in large type with a bar per macro: the dish page, or `compact` in a pop-up panel. */
+export function NutritionPanel({ nutrition, compact }: { nutrition: NutritionRecord | null | undefined; compact?: boolean }) {
   const facts = factsOf(nutrition);
   if (!facts) return null;
   // Bars share one scale so they compare at a glance
@@ -60,11 +40,13 @@ export function NutritionPanel({ nutrition }: { nutrition: NutritionRecord | nul
     <div>
       {facts.kcal != null && (
         <p className="flex items-baseline gap-2">
-          <span className="font-display text-6xl font-medium leading-none tracking-[-0.03em] tabular-nums">{facts.kcal}</span>
+          <span className={cn('font-display font-medium leading-none tracking-[-0.03em] tabular-nums', compact ? 'text-5xl' : 'text-6xl')}>
+            {facts.kcal}
+          </span>
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-ember">kcal</span>
         </p>
       )}
-      <ul className="mt-6 space-y-4">
+      <ul className={compact ? 'mt-4 space-y-3' : 'mt-6 space-y-4'}>
         {facts.macros.map((m) => (
           <li key={m.label}>
             <div className="flex items-baseline justify-between">
@@ -78,7 +60,7 @@ export function NutritionPanel({ nutrition }: { nutrition: NutritionRecord | nul
         ))}
       </ul>
       {facts.sodiumMg != null && (
-        <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.2em] text-cream/45">Sodium {facts.sodiumMg} mg</p>
+        <p className={cn('font-mono text-[11px] uppercase tracking-[0.2em] text-cream/45', compact ? 'mt-3' : 'mt-4')}>Sodium {facts.sodiumMg} mg</p>
       )}
     </div>
   );

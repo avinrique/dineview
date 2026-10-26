@@ -4,6 +4,7 @@ import { useRef, type Ref } from 'react';
 import { createPortal } from 'react-dom';
 import { Hand, Move, Smartphone, X } from 'lucide-react';
 import type { DishArStatus } from '@/components/ar/webxr-ar';
+import { DishFacts, type DishFactsData } from '@/components/customer/dish-facts';
 import { cn } from '@/lib/utils';
 
 interface DishArOverlayProps {
@@ -11,6 +12,7 @@ interface DishArOverlayProps {
   active: boolean;
   status: DishArStatus;
   title?: string;
+  facts?: DishFactsData;
   onClose(): void;
   onReposition(): void;
   onRotate(radians: number): void;
@@ -27,7 +29,7 @@ const MESSAGES: Record<DishArStatus, string> = {
  * UI drawn over the camera feed during in-browser AR (the WebXR DOM overlay).
  * Always mounted so the session can be handed the element on tap.
  */
-export function DishArOverlay({ rootRef, active, status, title, onClose, onReposition, onRotate }: DishArOverlayProps) {
+export function DishArOverlay({ rootRef, active, status, title, facts, onClose, onReposition, onRotate }: DishArOverlayProps) {
   const lastX = useRef<number | null>(null);
 
   if (typeof document === 'undefined') return null;
@@ -61,16 +63,25 @@ export function DishArOverlay({ rootRef, active, status, title, onClose, onRepos
         )}
       </div>
 
+      {/* Nutrition and ingredients, opened from two buttons under the title */}
+      {facts && (
+        <DishFacts
+          facts={facts}
+          placement="below"
+          className="absolute inset-x-4 bottom-36 top-[calc(max(env(safe-area-inset-top),1rem)+3.5rem)]"
+        />
+      )}
+
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 px-5 pb-[max(env(safe-area-inset-bottom),1.5rem)]">
         <div
           className={cn(
             'flex items-center gap-2.5 rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg backdrop-blur-md',
-            status === 'ready' ? 'bg-brand-500' : 'bg-black/55',
+            status === 'ready' ? 'bg-ember text-ink' : 'bg-black/55',
           )}
         >
           {status === 'loading' && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
           {status === 'scanning' && <Smartphone className="h-4 w-4 animate-ar-sweep" />}
-          {status === 'ready' && <span className="h-2.5 w-2.5 animate-ping rounded-full bg-white" />}
+          {status === 'ready' && <span className="h-2.5 w-2.5 animate-ping rounded-full bg-ink" />}
           {status === 'placed' && <Hand className="h-4 w-4" />}
           {MESSAGES[status]}
         </div>
