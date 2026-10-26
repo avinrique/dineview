@@ -13,6 +13,8 @@ interface DishArOverlayProps {
   status: DishArStatus;
   title?: string;
   facts?: DishFactsData;
+  /** Camera preview on a phone without ARCore: no table tracking, so promise less. */
+  preview?: boolean;
   onClose(): void;
   onReposition(): void;
   onRotate(radians: number): void;
@@ -25,11 +27,18 @@ const MESSAGES: Record<DishArStatus, string> = {
   placed: 'Drag to turn it. It stays where you put it.',
 };
 
+const PREVIEW_MESSAGES: Record<DishArStatus, string> = {
+  loading: 'Getting the dish ready…',
+  scanning: 'Point your phone down at the table',
+  ready: 'Tap to place it here',
+  placed: 'Drag to turn it',
+};
+
 /**
  * UI drawn over the camera feed during in-browser AR (the WebXR DOM overlay).
  * Always mounted so the session can be handed the element on tap.
  */
-export function DishArOverlay({ rootRef, active, status, title, facts, onClose, onReposition, onRotate }: DishArOverlayProps) {
+export function DishArOverlay({ rootRef, active, status, title, facts, preview, onClose, onReposition, onRotate }: DishArOverlayProps) {
   const lastX = useRef<number | null>(null);
 
   if (typeof document === 'undefined') return null;
@@ -58,7 +67,7 @@ export function DishArOverlay({ rootRef, active, status, title, facts, onClose, 
         </button>
         {title && (
           <span className="min-w-0 truncate rounded-full bg-black/45 px-3.5 py-2 text-sm font-medium backdrop-blur-md">
-            {title} · real size
+            {title} · {preview ? 'camera preview' : 'real size'}
           </span>
         )}
       </div>
@@ -83,7 +92,7 @@ export function DishArOverlay({ rootRef, active, status, title, facts, onClose, 
           {status === 'scanning' && <Smartphone className="h-4 w-4 animate-ar-sweep" />}
           {status === 'ready' && <span className="h-2.5 w-2.5 animate-ping rounded-full bg-ink" />}
           {status === 'placed' && <Hand className="h-4 w-4" />}
-          {MESSAGES[status]}
+          {(preview ? PREVIEW_MESSAGES : MESSAGES)[status]}
         </div>
         {status === 'placed' && (
           <button

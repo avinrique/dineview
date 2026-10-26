@@ -49,6 +49,14 @@ async function supportsDishAr() {
   }
 }
 
+/**
+ * Any other Android phone (no ARCore, e.g. the POCO F6, or a browser without
+ * WebXR): the gyroscope camera preview in camera-ar.ts.
+ */
+function supportsCameraAr() {
+  return /Android/i.test(navigator.userAgent) && window.isSecureContext && Boolean(navigator.mediaDevices?.getUserMedia);
+}
+
 function arUnavailableHint() {
   const ua = navigator.userAgent;
   if (/iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) {
@@ -63,9 +71,11 @@ const cm = (metres: number) => Math.max(1, Math.round(metres * 100));
 /**
  * 3D dish viewer with "View on your table" AR, built on Google's <model-viewer>.
  *
- *  - Android: our own WebXR session (webxr-ar.ts): aim at the table, tap to
- *    place, anchored so it doesn't drift. Falls back to Google's Scene Viewer
- *    on phones without WebXR.
+ *  - Android with ARCore: our own WebXR session (webxr-ar.ts): aim at the
+ *    table, tap to place, anchored so it doesn't drift. If the session fails
+ *    to start (ARCore declined), the next tap opens Google's Scene Viewer.
+ *  - Other Android phones: a camera preview (camera-ar.ts) with the dish
+ *    drawn over the live camera, held in place by the gyroscope.
  *  - iOS (Safari/Chrome): AR Quick Look with the dish's USDZ (`iosSrc`).
  *  - Desktop / devices without AR: interactive 3D only.
  *
@@ -89,9 +99,10 @@ export function ModelViewerAr({
   const [loaded, setLoaded] = useState(false);
   const [canNativeAr, setCanNativeAr] = useState(false);
   const [webxr, setWebxr] = useState(false);
+  const [cameraAr, setCameraAr] = useState(false);
   const [xrActive, setXrActive] = useState(false);
   const [xrStatus, setXrStatus] = useState<DishArStatus>('loading');
-  const [arFailed, setArFailed] = useState(false);
+  const [arError, setArError] = useState<'failed' | 'camera-denied' | 'camera' | null>(null);
   const [tipsOpen, setTipsOpen] = useState(false);
   const [size, setSize] = useState<{ w: number; d: number; h: number } | null>(null);
   const viewerRef = useRef<ModelViewerElement | null>(null);
@@ -106,7 +117,11 @@ export function ModelViewerAr({
       .then(() => {
         if (!cancelled) setReady(true);
       });
-    supportsDishAr().then((ok) => !cancelled && setWebxr(ok));
+    supportsDishAr().then((ok) => {
+      if (cancelled) return;
+      setWebxr(ok);
+      setCameraAr(!ok && supportsCameraAr());
+    });
     return () => {
       cancelled = true;
     };
@@ -115,7 +130,8 @@ export function ModelViewerAr({
   // Warm up the AR module so the tap can start the session straight away
   useEffect(() => {
     if (webxr) import('@/components/ar/webxr-ar').catch(() => undefined);
-  }, [webxr]);
+    if (cameraAr) import('@/components/ar/camera-ar').catch(() => undefined);
+  }, [webxr, cameraAr]);
 
   useEffect(() => {
     const el = viewerRef.current;
@@ -128,7 +144,7 @@ export function ModelViewerAr({
       const dims = el.getDimensions();
       setSize({ w: cm(dims.x), d: cm(dims.z), h: cm(dims.y) });
     };
-    const onArStatus = (e: Event) => setArFailed((e as CustomEvent).detail.status === 'failed');
+    const onArStatus = (e: Event) => setArError((e as CustomEvent).detail.status === 'failed' ? 'failed' : null);
     el.addEventListener('progress', onProgress);
     el.addEventListener('load', onLoad);
     el.addEventListener('ar-status', onArStatus);
@@ -150,7 +166,8 @@ export function ModelViewerAr({
 
   useEffect(() => () => sessionRef.current?.end(), []);
 
-  async function startWebXr() {
+  /** Our own AR on Android: WebXR with ARCore, otherwise the camera preview. */
+  async function startSession() {
     const overlay = overlayRef.current;
     if (!overlay) return;
     // The overlay must be visible before the session takes it over
@@ -158,30 +175,40 @@ export function ModelViewerAr({
       setXrStatus('loading');
       setXrActive(true);
     });
+    const options = {
+      modelUrl,
+      overlay,
+      onStatus: setXrStatus,
+      onEnd: () => {
+        sessionRef.current = null;
+        setXrActive(false);
+      },
+    };
     try {
-      const { startDishAr } = await import('@/components/ar/webxr-ar');
-      sessionRef.current = await startDishAr({
-        modelUrl,
-        overlay,
-        onStatus: setXrStatus,
-        onEnd: () => {
-          sessionRef.current = null;
-          setXrActive(false);
-        },
-      });
-    } catch {
-      // e.g. ARCore missing or declined: the next tap uses Google's AR viewer
+      if (webxr) {
+        const { startDishAr } = await import('@/components/ar/webxr-ar');
+        sessionRef.current = await startDishAr(options);
+      } else {
+        const { startCameraAr } = await import('@/components/ar/camera-ar');
+        sessionRef.current = await startCameraAr(options);
+      }
+    } catch (err) {
       setXrActive(false);
-      setWebxr(false);
-      setArFailed(true);
+      if (webxr) {
+        // e.g. ARCore missing or declined: the next tap uses Google's AR viewer
+        setWebxr(false);
+        setArError('failed');
+      } else {
+        setArError((err as DOMException)?.name === 'NotAllowedError' ? 'camera-denied' : 'camera');
+      }
     }
   }
 
   function launchAr() {
     setTipsOpen(false);
-    setArFailed(false);
-    if (webxr) startWebXr();
-    else viewerRef.current?.activateAR().catch(() => setArFailed(true));
+    setArError(null);
+    if (webxr || cameraAr) startSession();
+    else viewerRef.current?.activateAR().catch(() => setArError('failed'));
   }
 
   function handleArClick() {
@@ -201,7 +228,7 @@ export function ModelViewerAr({
 
   // Scene Viewer reads extra options from the model URL's query string
   const src = title ? `${modelUrl}${modelUrl.includes('?') ? '&' : '?'}title=${encodeURIComponent(title)}` : modelUrl;
-  const canAr = webxr || canNativeAr;
+  const canAr = webxr || cameraAr || canNativeAr;
 
   const progressBar = createElement(
     'div',
@@ -281,29 +308,35 @@ export function ModelViewerAr({
         )}
       </div>
 
-      {arFailed && (
+      {arError && (
         <div className="absolute inset-x-4 top-16 z-20 rounded-xl bg-white/95 px-4 py-3 text-center text-sm text-gray-700 shadow">
-          {canAr
-            ? 'AR didn’t start. Tap “View on your table” to try again.'
-            : 'AR couldn’t start on this phone. You can still turn and zoom the dish here.'}
+          {arError === 'camera-denied'
+            ? 'Allow camera access to see the dish on your table, then tap “View on your table” again.'
+            : arError === 'camera'
+              ? 'The camera didn’t open. Close other apps using it and try again.'
+              : canAr
+                ? 'AR didn’t start. Tap “View on your table” to try again.'
+                : 'AR couldn’t start on this phone. You can still turn and zoom the dish here.'}
         </div>
       )}
 
       <ArTipsSheet
         open={tipsOpen}
+        preview={cameraAr}
         onStart={() => {
           markArTipsSeen();
           launchAr();
         }}
         onClose={() => setTipsOpen(false)}
       />
-      {webxr && (
+      {(webxr || cameraAr) && (
         <DishArOverlay
           rootRef={overlayRef}
           active={xrActive}
           status={xrStatus}
           title={title}
           facts={facts}
+          preview={cameraAr}
           onClose={() => sessionRef.current?.end()}
           onReposition={() => sessionRef.current?.reposition()}
           onRotate={(r) => sessionRef.current?.rotate(r)}

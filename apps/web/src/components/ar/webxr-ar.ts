@@ -31,7 +31,7 @@ interface StartOptions {
 }
 
 /** Soft round shadow so the dish looks like it sits on the table. */
-function contactShadow(size: number) {
+export function contactShadow(size: number) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 128;
   const ctx = canvas.getContext('2d')!;
@@ -50,7 +50,7 @@ function contactShadow(size: number) {
   return mesh;
 }
 
-function makeReticle() {
+export function makeReticle() {
   const group = new THREE.Group();
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(0.075, 0.09, 64).rotateX(-Math.PI / 2),
@@ -64,6 +64,19 @@ function makeReticle() {
   group.matrixAutoUpdate = false;
   group.visible = false;
   return group;
+}
+
+/** Frees every geometry, material and texture in the scene. */
+export function disposeScene(scene: THREE.Scene) {
+  scene.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    mesh.geometry?.dispose();
+    const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    materials.forEach((m) => {
+      Object.values(m).forEach((v) => v instanceof THREE.Texture && v.dispose());
+      m.dispose();
+    });
+  });
 }
 
 export async function startDishAr({ modelUrl, overlay, onStatus, onEnd }: StartOptions): Promise<DishArSession> {
@@ -211,15 +224,7 @@ export async function startDishAr({ modelUrl, overlay, onStatus, onEnd }: StartO
     hitTestSource?.cancel();
     anchor?.delete();
     pmrem.dispose();
-    scene.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      mesh.geometry?.dispose();
-      const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
-      materials.forEach((m) => {
-        Object.values(m).forEach((v) => v instanceof THREE.Texture && v.dispose());
-        m.dispose();
-      });
-    });
+    disposeScene(scene);
     renderer.dispose();
     renderer.domElement.remove();
     onEnd();

@@ -27,7 +27,15 @@ function isIos() {
   return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 }
 
-function stepsFor(ios: boolean) {
+function stepsFor(ios: boolean, preview: boolean) {
+  // Camera preview (phones without ARCore): no table tracking, so promise less
+  if (preview) {
+    return [
+      { icon: ScanLine, title: 'Point your camera at the table', body: 'A plain, well-lit surface works best.' },
+      { icon: MoveHorizontal, title: 'Turn your phone, don’t walk', body: 'This phone can’t track the table, so the dish stays put as you turn, not as you move.' },
+      { icon: Hand, title: 'Tap to place it, drag to turn', body: 'It shows at close to its real size.' },
+    ];
+  }
   return [
     { icon: ScanLine, title: 'Point your camera at the table', body: 'A plain, well-lit surface works best.' },
     { icon: MoveHorizontal, title: 'Move your phone slowly', body: 'Sweep side to side so your phone can find the table.' },
@@ -38,7 +46,18 @@ function stepsFor(ios: boolean) {
 }
 
 /** One-time coaching shown before the camera opens, so first AR attempts succeed. */
-export function ArTipsSheet({ open, onStart, onClose }: { open: boolean; onStart: () => void; onClose: () => void }) {
+export function ArTipsSheet({
+  open,
+  preview = false,
+  onStart,
+  onClose,
+}: {
+  open: boolean;
+  /** The camera preview for phones without ARCore. */
+  preview?: boolean;
+  onStart: () => void;
+  onClose: () => void;
+}) {
   const [ios, setIos] = useState(false);
 
   useEffect(() => {
@@ -62,7 +81,7 @@ export function ArTipsSheet({ open, onStart, onClose }: { open: boolean; onStart
         <p className="mt-1 text-sm text-gray-500">Three quick tips before your camera opens.</p>
 
         <ol className="mt-5 space-y-4">
-          {stepsFor(ios).map((step, i) => (
+          {stepsFor(ios, preview).map((step, i) => (
             <li key={step.title} className="flex gap-3.5">
               <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <step.icon className="h-5 w-5" />
