@@ -35,7 +35,8 @@ pnpm install --frozen-lockfile --reporter=append-only | tail -5
 cd apps/api
 set -a; . ~/dineview-data/api.env; set +a
 pnpm exec prisma migrate deploy
-if [ "$1" = "--seed" ]; then
+# ssh drops an empty argument, so $1 may be unset
+if [ "${1:-}" = "--seed" ]; then
   pnpm exec prisma db seed
   pnpm run demo:reset
 fi
