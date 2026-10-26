@@ -30,6 +30,7 @@
 - [Architecture](#architecture)
 - [Getting Started](#getting-started)
 - [Giving a Demo](#giving-a-demo)
+- [Deploying to AWS](#deploying-to-aws)
 - [Project Structure](#project-structure)
 - [API Endpoints](#api-endpoints)
 - [AR Integration](#ar-integration)
@@ -244,6 +245,32 @@ Open the printed URL **on your laptop** (so QR codes encode the public URL, not 
 
 The quick-tunnel URL changes every time `cloudflared` restarts, and the demo logins are shown on the
 login page, so treat the link as public while it's running. Stop the tunnel when you're done.
+
+## Deploying to AWS
+
+`deploy/deploy.sh` deploys to an Amazon Linux 2023 EC2 instance (1 GB is enough). It builds on your
+machine, because `next build` doesn't fit in 1 GB, then copies the build up with rsync, runs
+`pnpm install` and `prisma migrate deploy` on the server, and restarts the services.
+
+```bash
+deploy/deploy.sh --seed   # first deploy: also loads the demo restaurant and sample history
+deploy/deploy.sh          # every later deploy
+```
+
+Before each deploy, the script runs `deploy/setup-server.sh` on the server. That step is idempotent.
+It sets up:
+
+- 2 GB of swap
+- Node 22
+- Postgres 16 and Redis
+- Caddy, which gets a Let's Encrypt certificate automatically
+- systemd units `dineview-api`, `dineview-web` and `caddy`, which start on boot
+
+Secrets are generated once on the server, in `~/dineview-data/api.env`. Uploads live in
+`~/dineview-data/uploads`, so redeploys never touch them. With no domain, the site is served at
+`https://<ip-with-dashes>.sslip.io`. Set `DEPLOY_DOMAIN` to use a real domain, after pointing its DNS at
+the server. `DEPLOY_HOST` and `DEPLOY_KEY` select the server and SSH key. The security group must allow
+ports 80 and 443.
 
 ## Project Structure
 
