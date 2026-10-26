@@ -19,7 +19,7 @@ export default function DishArPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-stage">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-stage-dark">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -28,9 +28,11 @@ export default function DishArPage() {
   const dish = data?.data;
   if (!dish || !hasArModel(dish)) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="text-gray-600">{dish ? 'This dish doesn’t have a 3D model yet.' : 'Dish not found.'}</p>
-        <Link href={dish ? `/dish/${dish.id}` : '/menu'} className="btn-primary">Go back</Link>
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-ink p-8 text-center text-cream">
+        <p className="text-cream/60">{dish ? 'This dish doesn’t have a 3D model yet.' : 'Dish not found.'}</p>
+        <Link href={dish ? `/dish/${dish.id}` : '/menu'} className="rounded-full bg-ember px-6 py-3 font-semibold text-ink">
+          Go back
+        </Link>
       </div>
     );
   }
@@ -38,10 +40,10 @@ export default function DishArPage() {
   const inCart = items.find((i) => i.dishId === dish.id);
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-stage">
+    <div className="fixed inset-0 flex flex-col bg-stage-dark text-cream">
       <button
         onClick={() => router.back()}
-        className="absolute left-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow backdrop-blur"
+        className="absolute left-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-cream/15 bg-ink/60 backdrop-blur"
         aria-label="Back"
       >
         <ChevronLeft className="h-5 w-5" />
@@ -58,16 +60,16 @@ export default function DishArPage() {
       </div>
 
       <div className="shrink-0 px-3 pb-safe">
-        <div className="mx-auto flex max-w-lg items-center gap-3 rounded-3xl bg-white p-3 pl-4 shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-1 ring-black/5">
+        <div className="mx-auto flex max-w-lg items-center gap-3 rounded-full border border-cream/10 bg-ink/80 p-1.5 pl-5 backdrop-blur-xl">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-semibold text-gray-900">{dish.name}</h1>
-            <p className="text-sm text-gray-500">{formatPrice(Number(dish.price), currency)}</p>
+            <h1 className="truncate font-display text-lg leading-tight">{dish.name}</h1>
+            <p className="font-mono text-xs text-cream/55">{formatPrice(Number(dish.price), currency)}</p>
           </div>
           <button
             onClick={() => addItem({ dishId: dish.id, name: dish.name, price: Number(dish.price), imageUrl: dish.imageUrl })}
-            className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition active:scale-[0.97]"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-ember px-5 py-3 text-sm font-semibold text-ink transition active:scale-[0.97]"
           >
-            {inCart ? <Check className="h-4 w-4 text-green-400" /> : <Plus className="h-4 w-4" />}
+            {inCart ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             {inCart ? `${inCart.quantity} in order · add` : 'Add to order'}
           </button>
         </div>

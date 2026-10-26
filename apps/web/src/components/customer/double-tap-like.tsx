@@ -5,7 +5,7 @@ import { Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * Double-tap to like, Instagram style, with a heart burst. Drags (rotating the
+ * Double-tap the dish to like it, with a heart burst. Drags (rotating the
  * 3D model) and slow taps are ignored, so it never fights the viewer controls.
  */
 export function DoubleTapLike({ onLike, children, className }: { onLike: () => void; children: ReactNode; className?: string }) {
@@ -33,7 +33,7 @@ export function DoubleTapLike({ onLike, children, className }: { onLike: () => v
       {children}
       {burst > 0 && (
         <span key={burst} className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-          <Heart className="h-24 w-24 fill-white text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.35)] animate-heart-burst" />
+          <Heart className="h-24 w-24 fill-ember text-ember drop-shadow-[0_4px_18px_rgba(0,0,0,0.35)] animate-heart-burst" />
         </span>
       )}
     </div>

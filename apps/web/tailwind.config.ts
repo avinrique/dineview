@@ -8,10 +8,6 @@ const config: Config = {
         display: ['var(--font-display)', 'Georgia', 'serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
-      backgroundImage: {
-        // Instagram-style story gradient, starting from the brand orange
-        ig: 'linear-gradient(45deg, #fdba74 0%, #f97316 22%, #ec4899 58%, #a855f7 82%, #6366f1 100%)',
-      },
       colors: {
         // Landing page: warm black, flour cream, oven ember
         ink: '#0b0a09',
@@ -40,10 +36,6 @@ const config: Config = {
         'heart-burst': 'heart-burst 900ms ease-out forwards',
         'heart-pop': 'heart-pop 300ms ease-out',
         float: 'float 6s ease-in-out infinite',
-        'spin-slow': 'spin 6s linear infinite',
-        marquee: 'marquee 9s linear infinite',
-        // One turn of the reel's 3D dish (auto-rotate at 20deg/s)
-        'reel-progress': 'reel-progress 18s linear infinite',
         'swipe-hint': 'swipe-hint 1.4s ease-in-out infinite',
         'ken-burns': 'ken-burns 14s ease-in-out infinite alternate',
         'scroll-line': 'scroll-line 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite',
@@ -80,14 +72,6 @@ const config: Config = {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
-        },
-        marquee: {
-          from: { transform: 'translateX(0)' },
-          to: { transform: 'translateX(-50%)' },
-        },
-        'reel-progress': {
-          from: { transform: 'scaleX(0)' },
-          to: { transform: 'scaleX(1)' },
         },
         'swipe-hint': {
           '0%, 100%': { transform: 'translateY(4px)', opacity: '0.6' },

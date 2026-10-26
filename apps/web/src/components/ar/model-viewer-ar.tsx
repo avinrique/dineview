@@ -189,7 +189,7 @@ export function ModelViewerAr({
     return (
       <div className={className ?? 'w-full h-full'}>
         <div className="flex h-full w-full items-center justify-center">
-          <span className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
+          <span className="h-8 w-8 animate-spin rounded-full border-4 border-ember border-t-transparent" />
         </div>
       </div>
     );
@@ -206,7 +206,7 @@ export function ModelViewerAr({
       className: `absolute inset-x-0 top-0 h-1 transition-opacity duration-300 ${loaded ? 'opacity-0' : 'opacity-100'}`,
     },
     createElement('div', {
-      className: 'h-full bg-brand-500 transition-[width] duration-200',
+      className: 'h-full bg-ember transition-[width] duration-200',
       style: { width: `${Math.round(progress * 100)}%` },
     }),
   );
@@ -255,15 +255,15 @@ export function ModelViewerAr({
 
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex flex-col items-center gap-2.5 px-4">
         {showSize && size && (
-          <span className="flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-black/5 backdrop-blur">
-            <Ruler className="h-3.5 w-3.5 text-brand-600" />
+          <span className="flex items-center gap-1.5 rounded-full bg-black/45 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-white ring-1 ring-white/15 backdrop-blur">
+            <Ruler className="h-3.5 w-3.5 text-ember" />
             Real size {size.w} × {size.d} × {size.h} cm
           </span>
         )}
         {showArButton && canAr && (
           <button
             onClick={handleArClick}
-            className="pointer-events-auto flex items-center gap-2 whitespace-nowrap rounded-full bg-ig px-6 py-3.5 font-semibold text-white shadow-lg shadow-pink-500/30 transition active:scale-[0.97]"
+            className="pointer-events-auto flex items-center gap-2 whitespace-nowrap rounded-full bg-ember px-6 py-3.5 font-semibold text-ink shadow-lg shadow-black/30 transition active:scale-[0.97]"
           >
             <Box className="h-5 w-5" />
             {arLabel}

@@ -29,6 +29,10 @@
   .bg-stage {
     background: radial-gradient(120% 90% at 50% 38%, #ffffff 0%, #f7f2ec 55%, #ede5da 100%);
   }
+  /* The same backdrop for the dark guest menu: a warm pool of light on ink */
+  .bg-stage-dark {
+    background: radial-gradient(90% 75% at 50% 42%, #2c2119 0%, #17120e 58%, #0f0d0b 100%);
+  }
 }
 
 @layer components {

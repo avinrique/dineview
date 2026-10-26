@@ -3,27 +3,28 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Box, ChevronLeft, Clock, Expand, Minus, Plus, Star } from 'lucide-react';
+import { ChevronLeft, Expand, Minus, Plus } from 'lucide-react';
 import { ALLERGEN_LABELS } from '@dineview/shared';
 import { useGetDishDetailQuery } from '@/store/api/menu-api';
 import { useCart } from '@/hooks/use-cart';
 import { useLikes } from '@/hooks/use-likes';
 import { useSession } from '@/hooks/use-session';
-import { formatPrice, hasArModel } from '@/lib/utils';
+import { cn, formatPrice, hasArModel } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ModelViewerAr } from '@/components/ar/model-viewer-ar';
 import { PhoneHandoffQr } from '@/components/ar/phone-handoff-qr';
 import { DishTile } from '@/components/customer/dish-tile';
 import { DoubleTapLike } from '@/components/customer/double-tap-like';
 import { LikeButton } from '@/components/customer/like-button';
-import { RestaurantAvatar } from '@/components/customer/restaurant-avatar';
-import { StoryRing } from '@/components/customer/story-ring';
+import { NutritionPanel, hasNutrition } from '@/components/customer/nutrition';
+
+const label = 'font-mono text-[11px] uppercase tracking-[0.2em]';
 
 export default function DishDetailPage() {
   const params = useParams();
   const router = useRouter();
   const dishId = params.id as string;
-  const { currency, settings, restaurantName } = useSession();
+  const { currency, settings } = useSession();
   const { items, addItem, updateQuantity } = useCart();
   const { like } = useLikes();
   const { data, isLoading } = useGetDishDetailQuery(dishId);
@@ -31,7 +32,7 @@ export default function DishDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-ink">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -40,20 +41,20 @@ export default function DishDetailPage() {
   const dish = data?.data;
   if (!dish) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4">
-        <p className="text-gray-500">This dish isn’t on the menu any more.</p>
-        <Link href="/menu" className="btn-primary">Back to menu</Link>
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-ink text-cream">
+        <p className="text-cream/60">This dish isn’t on the menu any more.</p>
+        <Link href="/menu" className="rounded-full bg-ember px-6 py-3 font-semibold text-ink">
+          Back to menu
+        </Link>
       </div>
     );
   }
 
   const ar = settings?.enableAr !== false && hasArModel(dish);
-  const nutrition = dish.nutrition;
   const allergens = dish.allergens || [];
-  const ingredients = dish.ingredients || [];
+  const ingredients = [...(dish.ingredients || [])].sort((a: any, b: any) => Number(b.isPrimary) - Number(a.isPrimary));
   const inCart = items.find((i) => i.dishId === dish.id);
   const price = Number(dish.price);
-  const name = restaurantName || 'Menu';
 
   function handleAdd() {
     if (inCart) {
@@ -65,33 +66,26 @@ export default function DishDetailPage() {
     router.push('/menu');
   }
 
-  const nutritionFacts = nutrition
-    ? [
-        { label: 'Calories', value: nutrition.calories, unit: '' },
-        { label: 'Protein', value: nutrition.proteinG, unit: 'g' },
-        { label: 'Carbs', value: nutrition.carbsG, unit: 'g' },
-        { label: 'Fat', value: nutrition.fatsG, unit: 'g' },
-      ].filter((f) => f.value != null)
-    : [];
-
   return (
-    <div className="min-h-[100dvh] bg-white pb-28">
-      {/* Post header */}
-      <header className="sticky top-0 z-30 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-lg items-center gap-2 px-2">
-          <button onClick={() => router.back()} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-gray-100" aria-label="Back">
-            <ChevronLeft className="h-6 w-6" />
+    <div className="min-h-[100dvh] bg-ink pb-28 text-cream">
+      <header className="sticky top-0 z-30 border-b border-cream/10 bg-ink/85 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-lg items-center gap-2 px-3">
+          <button
+            onClick={() => router.back()}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-cream/15 active:bg-cream/10"
+            aria-label="Back"
+          >
+            <ChevronLeft className="h-5 w-5" />
           </button>
-          <StoryRing active={ar} className="h-8 w-8 shrink-0">
-            <RestaurantAvatar name={name} className="text-[10px]" />
-          </StoryRing>
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-[13px] font-semibold text-gray-900">{name}</p>
-            {dish.category?.name && <p className="truncate text-[11px] text-gray-500">{dish.category.name}</p>}
-          </div>
+          <p className={cn(label, 'min-w-0 flex-1 truncate text-center text-cream/55')}>{dish.category?.name}</p>
+          <LikeButton id={dish.id} className="h-10 w-10 rounded-full border border-cream/15 active:bg-cream/10" />
           {ar && (
-            <Link href={`/dish/${dish.id}/ar`} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-gray-100" aria-label="Full screen">
-              <Expand className="h-5 w-5" />
+            <Link
+              href={`/dish/${dish.id}/ar`}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-cream/15 active:bg-cream/10"
+              aria-label="Full screen 3D"
+            >
+              <Expand className="h-[18px] w-[18px]" />
             </Link>
           )}
         </div>
@@ -101,7 +95,7 @@ export default function DishDetailPage() {
         {/* Media: live 3D model when the dish has one */}
         <DoubleTapLike onLike={() => like(dish.id)}>
           {ar ? (
-            <div className="relative aspect-[4/5] max-h-[68vh] w-full bg-stage">
+            <div className="relative aspect-[4/5] max-h-[68vh] w-full bg-stage-dark">
               <ModelViewerAr
                 modelUrl={dish.arAsset.fileUrl}
                 iosSrc={dish.arAsset.iosFileUrl}
@@ -115,96 +109,78 @@ export default function DishDetailPage() {
           )}
         </DoubleTapLike>
 
-        {/* Actions */}
-        <div className="flex items-center gap-4 px-4 pt-3">
-          <LikeButton id={dish.id} />
-          {ar && (
-            <Link href={`/dish/${dish.id}/ar`} className="-m-1 p-1" aria-label="Full screen 3D">
-              <Box className="h-6 w-6 text-gray-900" />
-            </Link>
-          )}
-          <span className="ml-auto text-xl font-bold text-gray-900">{formatPrice(price, currency)}</span>
-        </div>
-
-        {/* Caption */}
-        <div className="space-y-6 px-4 pt-2">
+        <div className="space-y-10 px-4 pt-6">
           <div>
-            <h1 className="font-display text-[30px] font-medium leading-tight text-gray-900">{dish.name}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+            <p className={cn(label, 'flex flex-wrap items-center gap-x-2 gap-y-1 text-cream/55')}>
+              {dish.isFeatured && <span className="text-ember">Chef’s pick</span>}
+              {dish.isFeatured && dish.prepTimeMin && <span className="h-1 w-1 rounded-full bg-cream/30" />}
+              {dish.prepTimeMin && <span>About {dish.prepTimeMin} min</span>}
               {ar && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-ig px-2.5 py-0.5 text-xs font-bold text-white">
-                  <Box className="h-3 w-3" /> AR ready
-                </span>
+                <>
+                  {(dish.isFeatured || dish.prepTimeMin) && <span className="h-1 w-1 rounded-full bg-cream/30" />}
+                  <span>In 3D &amp; AR</span>
+                </>
               )}
-              {dish.prepTimeMin && (
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="h-4 w-4" /> ~{dish.prepTimeMin} min
-                </span>
-              )}
-              {dish.isFeatured && (
-                <span className="inline-flex items-center gap-1 text-amber-600">
-                  <Star className="h-4 w-4 fill-current" /> Chef’s pick
-                </span>
-              )}
+            </p>
+            <div className="mt-2 flex items-start justify-between gap-4">
+              <h1 className="font-display text-[34px] font-medium leading-[1.02] tracking-[-0.02em]">{dish.name}</h1>
+              <span className="mt-2 shrink-0 font-mono text-lg">{formatPrice(price, currency)}</span>
             </div>
-            {dish.description && <p className="mt-3 leading-relaxed text-gray-700">{dish.description}</p>}
+            {dish.description && <p className="mt-4 leading-relaxed text-cream/65">{dish.description}</p>}
           </div>
 
           {ar && <PhoneHandoffQr path={`/dish/${dish.id}`} />}
 
+          {hasNutrition(dish.nutrition) && (
+            <section>
+              <h2 className={cn(label, 'mb-4 text-cream/45')}>Nutrition · per serving</h2>
+              <NutritionPanel nutrition={dish.nutrition} />
+            </section>
+          )}
+
+          {ingredients.length > 0 && (
+            <section>
+              <h2 className={cn(label, 'mb-1 text-cream/45')}>Ingredients</h2>
+              <ol>
+                {ingredients.map((i: any, n: number) => (
+                  <li key={i.id} className="flex items-baseline gap-3 border-b border-cream/10 py-3">
+                    <span className="font-mono text-xs text-ember">{String(n + 1).padStart(2, '0')}</span>
+                    <span className="font-display text-xl">{i.name}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           {allergens.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Allergens</h2>
-              <div className="flex flex-wrap gap-2">
+            <section>
+              <h2 className={cn(label, 'mb-3 text-cream/45')}>Allergens</h2>
+              <div className="flex flex-wrap gap-1.5">
                 {allergens.map((a: any) => (
-                  <span key={a.id} className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                  <span key={a.id} className="rounded-full border border-ember/40 px-3 py-1 text-xs text-cream/85">
                     {(ALLERGEN_LABELS as any)[a.allergen] ?? a.allergen}
                   </span>
                 ))}
               </div>
-            </div>
-          )}
-
-          {ingredients.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Ingredients</h2>
-              <p className="text-sm leading-relaxed text-gray-700">{ingredients.map((i: any) => i.name).join(' · ')}</p>
-            </div>
-          )}
-
-          {nutritionFacts.length > 0 && (
-            <div>
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Nutrition</h2>
-              <div className="grid grid-cols-4 divide-x divide-gray-100 rounded-2xl border border-gray-100">
-                {nutritionFacts.map((f) => (
-                  <div key={f.label} className="py-3 text-center">
-                    <p className="text-lg font-bold text-gray-900">
-                      {f.value}
-                      {f.unit}
-                    </p>
-                    <p className="text-[11px] text-gray-500">{f.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </section>
           )}
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/95 px-4 pt-3 pb-safe backdrop-blur-xl">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-cream/10 bg-ink/90 px-4 pt-3 pb-safe backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center gap-3">
-          <div className="flex items-center gap-1 rounded-full bg-gray-100 p-1">
+          <div className="flex items-center gap-1 rounded-full border border-cream/15 p-1">
             <button
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="flex h-9 w-9 items-center justify-center rounded-full active:bg-gray-200"
+              className="flex h-9 w-9 items-center justify-center rounded-full active:bg-cream/10"
               aria-label="Fewer"
             >
               <Minus className="h-4 w-4" />
             </button>
-            <span className="w-6 text-center font-semibold">{quantity}</span>
+            <span className="w-6 text-center font-mono">{quantity}</span>
             <button
               onClick={() => setQuantity((q) => Math.min(20, q + 1))}
-              className="flex h-9 w-9 items-center justify-center rounded-full active:bg-gray-200"
+              className="flex h-9 w-9 items-center justify-center rounded-full active:bg-cream/10"
               aria-label="More"
             >
               <Plus className="h-4 w-4" />
@@ -212,7 +188,7 @@ export default function DishDetailPage() {
           </div>
           <button
             onClick={handleAdd}
-            className="flex-1 rounded-full bg-gray-900 py-3.5 text-base font-semibold text-white transition active:scale-[0.98]"
+            className="flex-1 rounded-full bg-ember py-3.5 text-base font-semibold text-ink transition active:scale-[0.98]"
           >
             Add to order · {formatPrice(price * quantity, currency)}
           </button>

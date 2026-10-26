@@ -11,7 +11,7 @@ interface UiState {
   isSidebarOpen: boolean;
   notifications: Notification[];
   isLoading: boolean;
-  /** Full-screen dark content (the menu's Reels): the bottom nav goes dark too. */
+  /** Dark screens (the guest menu): the bottom nav goes dark too. */
   immersive: boolean;
 }
 

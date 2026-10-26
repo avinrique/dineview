@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { JetBrains_Mono } from 'next/font/google';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
@@ -14,17 +13,37 @@ import { Cursor } from '@/components/landing/cursor';
 import { Magnetic } from '@/components/landing/magnetic';
 import { DemoQr } from '@/components/landing/demo-qr';
 
-const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-mono' });
-
-// Sizes are measured from each model's bounding box (width × depth × height)
+// Sizes are measured from each model's bounding box (width × depth × height);
+// calories are the demo menu's, per serving
 const DISHES = [
-  { name: 'Butter Croissant', category: 'Bakery & Cakes', price: '$4.50', size: '20 × 8 × 6 cm', image: '/images/dishes/croissant.png' },
-  { name: 'Strawberry Chocolate Cake', category: 'Bakery & Cakes', price: '$46.00', size: '24 × 24 × 8 cm', image: '/images/dishes/strawberry-chocolate-cake.png' },
-  { name: 'Carrot Cake', category: 'Bakery & Cakes', price: '$42.00', size: '23 × 23 × 10 cm', image: '/images/dishes/carrot-cake.png' },
-  { name: 'Seasonal Fruit Bowl', category: 'Starters', price: '$16.00', size: '32 × 31 × 17 cm', image: '/images/dishes/fruit-bowl.png' },
-  { name: 'Afternoon Tea for Two', category: 'Drinks', price: '$14.00', size: '55 × 38 × 16 cm', image: '/images/dishes/afternoon-tea.png' },
-  { name: 'Italian Lemonade', category: 'Drinks', price: '$16.00', size: '39 × 28 × 22 cm', image: '/images/dishes/lemonade.png' },
+  { name: 'Strawberry Chocolate Cake', category: 'Bakery & Cakes', price: '$46.00', kcal: 450, size: '24 × 24 × 8 cm', image: '/images/dishes/strawberry-chocolate-cake.png' },
+  { name: 'Butter Croissant', category: 'Bakery & Cakes', price: '$4.50', kcal: 270, size: '20 × 8 × 6 cm', image: '/images/dishes/croissant.png' },
+  { name: 'Carrot Cake', category: 'Bakery & Cakes', price: '$42.00', kcal: 410, size: '23 × 23 × 10 cm', image: '/images/dishes/carrot-cake.png' },
+  { name: 'Seasonal Fruit Bowl', category: 'Starters', price: '$16.00', kcal: 240, size: '32 × 31 × 17 cm', image: '/images/dishes/fruit-bowl.png' },
+  { name: 'Afternoon Tea for Two', category: 'Drinks', price: '$14.00', kcal: null, size: '55 × 38 × 16 cm', image: '/images/dishes/afternoon-tea.png' },
+  { name: 'Italian Lemonade', category: 'Drinks', price: '$16.00', kcal: 120, size: '39 × 28 × 22 cm', image: '/images/dishes/lemonade.png' },
 ];
+
+// The 3D hero dish, as the demo menu lists it (per serving)
+const INSIDE = {
+  name: 'Strawberry Chocolate Cake',
+  image: '/images/dishes/strawberry-chocolate-cake.png',
+  kcal: 450,
+  macros: [
+    { label: 'Protein', g: 6 },
+    { label: 'Carbs', g: 52 },
+    { label: 'Fat', g: 24 },
+    { label: 'Sugar', g: 38 },
+  ],
+  ingredients: ['Dark chocolate', 'Fresh strawberries', 'Ganache'],
+  allergens: ['Gluten', 'Eggs', 'Milk', 'Soybeans'],
+};
+// How far each ingredient's leader line reaches into the dish (desktop)
+const LEADS = ['10vw', '14vw', '8vw'];
+
+// Where the dish rests in the hero: top right beside the headline on a
+// laptop, under it on a phone
+const HERO_POSE = { desktop: { x: 0.26, y: -0.17, scale: 0.8 }, mobile: { x: 0, y: 0.02, scale: 0.72 } };
 
 const STEPS = [
   {
@@ -35,7 +54,7 @@ const STEPS = [
   {
     title: 'See it on the table',
     body: 'Tap “View on your table” and the dish appears in front of you at its real size. Walk around it, lean in.',
-    chip: { label: 'Real size', value: '20 × 8 × 6 cm' },
+    chip: { label: 'Real size', value: '24 × 24 × 8 cm' },
   },
   {
     title: 'Order, then follow it',
@@ -45,9 +64,9 @@ const STEPS = [
 ];
 
 const STATEMENT: { text: string; em?: boolean }[] = [
-  { text: 'A paper menu can’t show you a croissant. A photo can’t tell you how big the cake is. DineView puts' },
+  { text: 'A paper menu can’t show you the cake. It can’t tell you how big it is, or what’s in it. DineView puts' },
   { text: 'the real dish', em: true },
-  { text: 'on your table, in 3D and at true size, before you order it.' },
+  { text: 'on your table, in 3D and at true size, with its calories and ingredients beside it.' },
 ];
 
 const ORDER_STEPS = ['Placed', 'Accepted', 'Preparing', 'Ready', 'Served', 'Paid'];
@@ -78,7 +97,7 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
   // Off for prefers-reduced-motion: no pinning, steps listed normally
   const [motion, setMotion] = useState(true);
   // Read every frame by the WebGL stage; GSAP tweens these numbers directly
-  const stage = useRef<StageState>({ x: 0.18, y: 0.04, scale: 1, rotX: 0.5, rotY: 0, opacity: 0, spin: 0.35 }).current;
+  const stage = useRef<StageState>({ ...HERO_POSE.desktop, rotX: 0.5, rotY: 0, opacity: 0, spin: 0.35 }).current;
   const demoHref = demoEnabled ? '/scan/demo' : '#demo';
 
   const onProgress = useCallback((p: number) => setProgress(p), []);
@@ -113,6 +132,7 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
       if (reduce) {
         setMotion(false);
         stage.spin = 0;
+        Object.assign(stage, HERO_POSE[window.innerWidth >= 768 ? 'desktop' : 'mobile']);
         // No movement: the dish simply hides once you leave the hero
         ScrollTrigger.create({
           trigger: '#story',
@@ -133,12 +153,13 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
         const at = (d: number, m: number) => (desktop ? d : m);
         const scrub = { scrub: 1.2, invalidateOnRefresh: true };
 
-        gsap.set(stage, { x: at(0.18, 0), y: at(0.04, 0.02), scale: at(1, 0.72) });
+        const hero = desktop ? HERO_POSE.desktop : HERO_POSE.mobile;
+        gsap.set(stage, hero);
 
         // Hero → statement: drift left, turn half way
         gsap.fromTo(
           stage,
-          { x: at(0.18, 0), y: at(0.04, 0.02), scale: at(1, 0.72), rotY: 0, rotX: 0.5 },
+          { ...hero, rotY: 0, rotX: 0.5 },
           {
             x: at(-0.33, 0),
             y: at(0.02, -0.3),
@@ -189,10 +210,52 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
             .to(chips[i], { autoAlpha: 1, scale: 1, duration: 0.25 }, i + 0.05);
         });
 
+        // How it works → what's inside: the dish comes to the centre
+        gsap.fromTo(
+          stage,
+          { x: at(0.2, 0), y: at(0.02, 0.2), scale: at(1.05, 0.85), rotY: Math.PI * 8, rotX: 0.6 },
+          {
+            x: 0,
+            y: at(0.03, -0.11),
+            scale: at(0.95, 0.72),
+            rotY: Math.PI * 9,
+            rotX: 0.55,
+            ease: 'none',
+            immediateRender: false,
+            scrollTrigger: { trigger: '#inside', start: 'top bottom', end: 'top top', ...scrub },
+          },
+        );
+
+        // What's inside: pinned while calories count, macros fill and the
+        // ingredients are drawn out of the dish
+        const kcal = document.querySelector<HTMLElement>('[data-kcal]');
+        const count = { v: 0 };
+        if (kcal) kcal.textContent = '0';
+        gsap
+          .timeline({ scrollTrigger: { trigger: '#inside', start: 'top top', end: '+=200%', pin: true, ...scrub } })
+          .fromTo(stage, { rotY: Math.PI * 9 }, { rotY: Math.PI * 11, ease: 'none', duration: 3 }, 0)
+          .fromTo(
+            count,
+            { v: 0 },
+            {
+              v: INSIDE.kcal,
+              duration: 0.9,
+              ease: 'power2.out',
+              onUpdate: () => {
+                if (kcal) kcal.textContent = String(Math.round(count.v));
+              },
+            },
+            0,
+          )
+          .fromTo('[data-macro-bar]', { scaleX: 0 }, { scaleX: 1, duration: 0.5, stagger: 0.15, ease: 'power2.out' }, 0.2)
+          .fromTo('[data-lead]', { scaleX: 0 }, { scaleX: 1, duration: 0.4, stagger: 0.35, ease: 'power2.inOut' }, 0.8)
+          .fromTo('[data-ingredient]', { autoAlpha: 0, x: 24 }, { autoAlpha: 1, x: 0, duration: 0.4, stagger: 0.35 }, 1)
+          .fromTo('[data-allergen]', { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: 0.3, stagger: 0.08 }, 2.1);
+
         // Into the menu gallery: the dish steps back and fades
         gsap.fromTo(
           stage,
-          { opacity: 1, scale: at(1.05, 0.85), y: at(0.02, 0.2) },
+          { opacity: 1, x: 0, scale: at(0.95, 0.72), y: at(0.03, -0.11) },
           {
             opacity: 0,
             scale: at(0.55, 0.5),
@@ -233,13 +296,13 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
         // Finale: the dish comes back
         gsap.fromTo(
           stage,
-          { opacity: 0, x: at(0.24, 0), y: 0.3, scale: 0.5, rotY: Math.PI * 8, rotX: 0.5 },
+          { opacity: 0, x: at(0.24, 0), y: 0.3, scale: 0.5, rotY: Math.PI * 11, rotX: 0.5 },
           {
             opacity: 1,
             x: at(0.24, 0),
             y: at(0.02, 0.02),
             scale: at(1, 0.6),
-            rotY: Math.PI * 9,
+            rotY: Math.PI * 12,
             rotX: 0.45,
             ease: 'none',
             immediateRender: false,
@@ -313,12 +376,15 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
     lenisRef.current?.start();
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) {
-      stage.opacity = 1;
+      // Without smooth scroll the page can move under the intro: only show the
+      // dish if the guest is still in the hero (matches the hide trigger below)
+      const story = document.querySelector('#story');
+      stage.opacity = story && story.getBoundingClientRect().top > window.innerHeight * 0.7 ? 1 : 0;
       return;
     }
     const tl = gsap.timeline();
     tl.to('[data-char]', { yPercent: 0, duration: 1.3, ease: 'expo.out', stagger: 0.028 }, 0)
-      .fromTo(stage, { opacity: 0, scale: 0.35, rotY: -Math.PI }, { opacity: 1, scale: window.innerWidth >= 768 ? 1 : 0.72, rotY: 0, duration: 1.8, ease: 'expo.out' }, 0.15)
+      .fromTo(stage, { opacity: 0, scale: 0.35, rotY: -Math.PI }, { opacity: 1, scale: HERO_POSE[window.innerWidth >= 768 ? 'desktop' : 'mobile'].scale, rotY: 0, duration: 1.8, ease: 'expo.out' }, 0.15)
       .to('[data-hero-fade]', { opacity: 1, y: 0, duration: 1, ease: 'expo.out', stagger: 0.08 }, 0.5);
     return () => {
       tl.kill();
@@ -326,9 +392,9 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
   }, [revealed, stage]);
 
   return (
-    <main ref={root} className={cn(mono.variable, 'relative overflow-x-clip bg-ink text-cream selection:bg-ember selection:text-ink')}>
+    <main ref={root} className="relative overflow-x-clip bg-ink text-cream selection:bg-ember selection:text-ink">
       <Preloader progress={progress} loaded={loaded} onReveal={() => setRevealed(true)} />
-      <DishStage src="/models/dishes/croissant.glb" state={stage} onProgress={onProgress} onLoaded={onLoaded} />
+      <DishStage src="/models/dishes/strawberry-chocolate-cake.glb" state={stage} onProgress={onProgress} onLoaded={onLoaded} />
       <Cursor />
       <div aria-hidden className="grain pointer-events-none fixed -inset-[10%] z-[90]" />
 
@@ -341,6 +407,7 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
           <nav className="hidden items-center gap-9 md:flex" aria-label="Sections">
             {[
               ['#how', 'How it works'],
+              ['#inside', 'What’s inside'],
               ['#menu', 'The menu'],
               ['#restaurants', 'For restaurants'],
             ].map(([href, text]) => (
@@ -363,17 +430,20 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
             <Chars text="Taste it" />
           </span>
           <span aria-hidden className="-mb-[0.14em] block overflow-hidden pb-[0.14em] text-[17vw] md:pl-[9vw] md:text-[13.5vw]">
-            <Chars text="before you" />
+            <Chars text="before" />
           </span>
-          <span aria-hidden className="-mb-[0.14em] block overflow-hidden pb-[0.14em] text-[17vw] italic text-ember md:text-[13.5vw]">
-            <Chars text="order." />
+          <span aria-hidden className="-mb-[0.14em] block overflow-hidden pb-[0.14em] text-[17vw] md:text-[13.5vw]">
+            <Chars text="you " />
+            <span className="italic text-ember">
+              <Chars text="order." />
+            </span>
           </span>
         </h1>
 
         <div className="mt-10 grid items-end gap-8 md:grid-cols-[1fr_auto_auto] md:gap-14">
           <p data-hero-fade className="max-w-md text-[17px] leading-relaxed text-cream/70 md:text-lg">
-            DineView is the AR menu for restaurants. Guests scan the table, see every dish in 3D at its real size, and order from
-            their phone.
+            DineView is the AR menu for restaurants. Guests scan the table, see every dish in 3D at its real size, check its
+            calories and ingredients, and order from their phone.
           </p>
           <div data-hero-fade className="flex flex-wrap items-center gap-3">
             <Magnetic>
@@ -395,7 +465,7 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
           </div>
         </div>
         <ul data-hero-fade className="mt-8 hidden flex-wrap gap-x-6 gap-y-2 border-t border-cream/10 pt-5 md:flex">
-          {['AR on iPhone & Android', 'No app to install', 'Live kitchen updates'].map((t) => (
+          {['AR on iPhone & Android', 'Calories & allergens', 'No app to install', 'Live kitchen updates'].map((t) => (
             <li key={t}>
               <Label className="text-cream/45">({t})</Label>
             </li>
@@ -428,7 +498,7 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
                 How it works
               </span>
             </h2>
-            <Label className="text-cream/50">(01 — 03)</Label>
+            <Label className="whitespace-nowrap text-cream/50">(01 — 03)</Label>
           </div>
 
           <div className="relative grid flex-1 md:grid-cols-2">
@@ -475,6 +545,94 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
         </div>
       </section>
 
+      {/* What's inside (pinned) */}
+      <section id="inside" className={cn('relative z-10 px-5 md:px-10', motion && 'h-[100svh] overflow-hidden')}>
+        <div className="flex h-full flex-col pb-8 pt-24 md:pb-12 md:pt-32">
+          <div className="flex items-baseline justify-between gap-6">
+            <h2 className="font-display text-[11vw] font-medium leading-[0.95] tracking-[-0.03em] md:text-[6vw]">
+              <span className="-mb-[0.14em] block overflow-hidden pb-[0.14em]">
+                <span data-rise className="inline-block">
+                  Know what’s
+                </span>
+              </span>
+              <span className="-mb-[0.14em] block overflow-hidden pb-[0.14em]">
+                <span data-rise className="inline-block italic text-ember">
+                  in it.
+                </span>
+              </span>
+            </h2>
+            <Label className="hidden text-cream/50 md:block">({INSIDE.name})</Label>
+          </div>
+
+          <div className="mt-6 flex flex-1 flex-col justify-end gap-5 md:mt-0 md:grid md:grid-cols-[minmax(0,25%)_1fr_minmax(0,25%)] md:items-center md:gap-0">
+            {/* Calories and macros */}
+            <div>
+              <Label className="text-cream/50">Per serving</Label>
+              <p className="mt-1 flex items-baseline gap-2 md:mt-2">
+                <span data-kcal className="font-display text-[17vw] font-medium leading-none tracking-[-0.04em] tabular-nums md:text-[7vw]">
+                  {INSIDE.kcal}
+                </span>
+                <Label className="text-ember">kcal</Label>
+              </p>
+              <ul className="mt-4 grid grid-cols-4 gap-x-3 md:mt-10 md:block md:space-y-5">
+                {INSIDE.macros.map((m) => (
+                  <li key={m.label}>
+                    <div className="flex flex-col gap-0.5 md:flex-row md:items-baseline md:justify-between md:gap-2">
+                      <Label className="text-[10px] text-cream/60 md:text-[11px]">{m.label}</Label>
+                      <span className="font-mono text-sm tabular-nums">{m.g} g</span>
+                    </div>
+                    <div className="mt-1.5 h-px bg-cream/15">
+                      <div data-macro-bar className="h-full origin-left bg-ember" style={{ width: `${(m.g / 60) * 100}%` }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* The 3D dish turns in this gap; a still stands in without motion */}
+            <div className={cn('justify-center', motion ? 'hidden md:block' : 'flex')}>
+              {!motion && <img src={INSIDE.image} alt={INSIDE.name} className="max-h-[40svh] w-[80%] object-contain" />}
+            </div>
+
+            {/* Ingredients, drawn out of the dish, and allergens */}
+            <div>
+              <Label className="text-cream/50">Ingredients</Label>
+              <ul className="mt-2 flex flex-wrap gap-1.5 md:mt-3 md:block">
+                {INSIDE.ingredients.map((name, i) => (
+                  <li key={name} className="relative md:border-b md:border-cream/10">
+                    <span
+                      data-lead
+                      aria-hidden
+                      className="absolute right-full top-1/2 hidden h-px origin-right bg-cream/45 md:block"
+                      style={{ width: LEADS[i] }}
+                    >
+                      <span className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-ember shadow-[0_0_0_4px_rgba(255,107,26,0.25)]" />
+                    </span>
+                    <span
+                      data-ingredient
+                      className="flex items-baseline gap-3 rounded-full border border-cream/20 px-3 py-1 text-sm md:rounded-none md:border-0 md:px-0 md:py-3.5 md:font-display md:text-[1.9vw] md:leading-tight"
+                    >
+                      <span className="hidden font-mono text-xs text-ember md:inline">0{i + 1}</span>
+                      {name}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5 md:mt-8">
+                <Label className="text-cream/50">Allergens</Label>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {INSIDE.allergens.map((a) => (
+                    <span key={a} data-allergen className="rounded-full bg-cream/10 px-3 py-1 text-xs text-cream/80">
+                      {a}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* The menu (horizontal on desktop) */}
       <section id="menu" className="relative z-20 bg-cream text-ink">
         <div data-track-viewport className="overflow-x-auto scrollbar-none md:h-[100svh]">
@@ -488,7 +646,7 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
                   <em className="text-ember">in 3D.</em>
                 </h2>
                 <p className="mt-6 max-w-sm text-ink/60">
-                  Photoreal scans of real food, at true scale. A croissant is 20 cm on the table because it’s 20 cm on the plate.
+                  Photoreal scans of real food, at true scale. The cake is 24 cm on the table because it’s 24 cm on the plate.
                 </p>
               </div>
               <Label className="flex items-center gap-2 text-ink/50">
@@ -525,6 +683,7 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
                   <h3 className="font-display text-[10vw] font-medium leading-[0.95] tracking-[-0.025em] md:text-[4vw]">{d.name}</h3>
                   <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1">
                     <span className="font-semibold">{d.price}</span>
+                    {d.kcal && <Label className="text-ink/55">{d.kcal} kcal</Label>}
                     <Label className="text-ink/55">Real size {d.size}</Label>
                     <Label className="flex items-center gap-1.5 text-ember">
                       <Box className="h-3.5 w-3.5" /> AR ready
@@ -541,8 +700,8 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
       <section aria-label="Scan, see it in 3D, order, follow it live" className="relative z-20 overflow-hidden bg-ink py-16 md:py-24">
         <div data-marquee-wrap className="space-y-2">
           {[
-            ['Scan the table', 'See it in 3D', 'Order', 'Follow it live'],
-            ['No app needed', 'Real size', 'iPhone & Android', 'Kitchen in a second'],
+            ['Scan the table', 'See it in 3D', 'Know what’s in it', 'Order', 'Follow it live'],
+            ['No app needed', 'Real size', 'Calories & allergens', 'Kitchen in a second'],
           ].map((words, row) => (
             <div key={row} data-marquee className="flex w-max">
               {[0, 1].map((copy) => (

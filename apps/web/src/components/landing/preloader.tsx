@@ -95,7 +95,7 @@ export function Preloader({ progress, loaded, onReveal }: PreloaderProps) {
         </span>
       </div>
       <div data-pre-count className="flex items-end justify-between">
-        <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-cream/50">Loading the croissant</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-cream/50">Plating the cake</span>
         <span className="font-mono text-6xl tabular-nums md:text-8xl">{String(count).padStart(3, '0')}</span>
       </div>
     </div>

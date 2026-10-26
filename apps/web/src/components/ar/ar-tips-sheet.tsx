@@ -80,7 +80,7 @@ export function ArTipsSheet({ open, onStart, onClose }: { open: boolean; onStart
 
         <button
           onClick={onStart}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-ig py-3.5 font-semibold text-white shadow-lg shadow-pink-500/25 transition active:scale-[0.98]"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-ember py-3.5 font-semibold text-ink shadow-lg shadow-black/20 transition active:scale-[0.98]"
         >
           <Camera className="h-5 w-5" /> Open camera
         </button>

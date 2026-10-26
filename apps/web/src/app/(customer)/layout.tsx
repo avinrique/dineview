@@ -68,17 +68,15 @@ function NoSession({ reason }: { reason: 'closed' | 'expired' | null }) {
       : 'Scan the QR code on your table to see the menu and order from your phone.';
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-white p-8">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-ink p-8 text-cream">
       <div className="max-w-sm text-center">
-        <span className="mx-auto mb-7 block h-24 w-24 rounded-full bg-ig p-[3px]">
-          <span className="flex h-full w-full items-center justify-center rounded-full border-[3px] border-white bg-gray-900">
-            <QrCode className="h-10 w-10 text-white" />
-          </span>
+        <span className="mx-auto mb-7 flex h-24 w-24 items-center justify-center rounded-full border border-ember/40 bg-cream/[0.04]">
+          <QrCode className="h-10 w-10 text-ember" />
         </span>
-        <h1 className="mb-2 font-display text-3xl font-medium text-gray-900">{title}</h1>
-        <p className="mb-8 text-gray-600">{body}</p>
+        <h1 className="mb-2 font-display text-4xl font-medium tracking-[-0.02em]">{title}</h1>
+        <p className="mb-8 text-cream/60">{body}</p>
         {DEMO_ENABLED && (
-          <Link href="/scan/demo" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-6 py-3 font-semibold text-white">
+          <Link href="/scan/demo" className="inline-flex items-center gap-2 rounded-full bg-ember px-6 py-3 font-semibold text-ink">
             <Sparkles className="h-4 w-4" />
             Open the demo table
           </Link>

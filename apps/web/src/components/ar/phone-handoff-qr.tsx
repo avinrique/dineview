@@ -28,13 +28,13 @@ export function PhoneHandoffQr({ path }: { path: string }) {
   if (!dataUrl) return null;
 
   return (
-    <div className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+    <div className="flex items-center gap-4 rounded-2xl border border-cream/10 bg-cream/[0.04] p-4">
       <img src={dataUrl} alt="QR code to open this dish on your phone" className="h-24 w-24 rounded-lg" />
       <div className="text-sm">
-        <p className="flex items-center gap-1.5 font-semibold text-gray-900">
-          <Smartphone className="h-4 w-4 text-brand-500" /> See it in AR on your phone
+        <p className="flex items-center gap-1.5 font-semibold text-cream">
+          <Smartphone className="h-4 w-4 text-ember" /> See it in AR on your phone
         </p>
-        <p className="mt-1 text-gray-500">Scan with your phone camera to place this dish on a real table.</p>
+        <p className="mt-1 text-cream/55">Scan with your phone camera to place this dish on a real table.</p>
       </div>
     </div>
   );

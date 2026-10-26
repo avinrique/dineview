@@ -1,30 +1,14 @@
 'use client';
 
-import { createElement, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import {
-  Box,
-  Check,
-  ChevronUp,
-  Clock,
-  Heart,
-  LayoutGrid,
-  MoreHorizontal,
-  Plus,
-  Send,
-  ShoppingBag,
-  Star,
-  UtensilsCrossed,
-} from 'lucide-react';
+import { ArrowUpRight, Box, Check, ChevronUp, Heart, LayoutGrid, Plus, ShoppingBag } from 'lucide-react';
 import { ALLERGEN_LABELS } from '@dineview/shared';
-import { useAppDispatch } from '@/store';
-import { notify } from '@/store/slices/ui-slice';
 import { useCart } from '@/hooks/use-cart';
 import { useLikes } from '@/hooks/use-likes';
 import { cn, formatPrice } from '@/lib/utils';
-import { pickFor } from '@/components/customer/dish-tile';
 import { DoubleTapLike } from '@/components/customer/double-tap-like';
-import { RestaurantAvatar } from '@/components/customer/restaurant-avatar';
+import { MacroRow } from '@/components/customer/nutrition';
 
 type Dish = any;
 
@@ -39,7 +23,7 @@ interface ReelsFeedProps {
   categories: { id: string; name: string }[];
   categoryId: string | null;
   onCategory: (id: string | null) => void;
-  /** Dish to open at (tapped in the grid, or the one the guest left from). */
+  /** Dish to open at (tapped in the list, or the one the guest left from). */
   startId?: string | null;
   onActive?: (dishId: string) => void;
   onBrowse: () => void;
@@ -48,17 +32,22 @@ interface ReelsFeedProps {
   currency: string;
 }
 
-// Spotlight colour behind each dish, per category, on a dark stage
-const TINTS = ['#6b3a1c', '#2d4a2b', '#5c2333', '#22385c', '#40295e', '#5c4a16'] as const;
+// Ingredient callouts around the dish: which side, and how far down
+const CALLOUTS = [
+  { side: 'left', top: '16%' },
+  { side: 'right', top: '44%' },
+  { side: 'left', top: '70%' },
+] as const;
+
+const label = 'font-mono text-[10px] uppercase tracking-[0.2em]';
 
 // The swipe hint shows once per visit
 let hintSeen = false;
 
 /**
- * The menu as full-screen Reels: one dish per screen, swipe up for the next.
- * Dishes with a 3D model play it as a slow turntable; the rest show their
- * photo or a title card. Like, AR, add-to-order and share sit on the right
- * rail; the caption carries price, tags and allergens.
+ * The menu one dish per screen: swipe up for the next. Dishes with a 3D model
+ * turn slowly with their ingredients called out around them; calories and
+ * macros sit under the name, with like, AR and add in one row.
  */
 export function ReelsFeed({
   items,
@@ -73,7 +62,9 @@ export function ReelsFeed({
   currency,
 }: ReelsFeedProps) {
   const scroller = useRef<HTMLDivElement>(null);
-  const first = useRef(true);
+  // Category the feed was last placed for: dev StrictMode re-runs effects
+  // without a change, and that must not send the guest back to the top
+  const placedFor = useRef<string | null | undefined>(undefined);
   const [active, setActive] = useState(0);
   const [viewerReady, setViewerReady] = useState(false);
   const [hint, setHint] = useState(!hintSeen);
@@ -94,9 +85,9 @@ export function ReelsFeed({
   // Open at the requested dish; a new category starts from its first dish
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (!el) return;
-    const start = first.current ? Math.max(0, items.findIndex((i) => i.dish.id === startId)) : 0;
-    first.current = false;
+    if (!el || placedFor.current === categoryId) return;
+    const start = placedFor.current === undefined ? Math.max(0, items.findIndex((i) => i.dish.id === startId)) : 0;
+    placedFor.current = categoryId;
     el.scrollTop = start * el.clientHeight;
     setActive(start);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,7 +127,7 @@ export function ReelsFeed({
     return () => clearTimeout(t);
   }, [added]);
 
-  // Arrow keys / j k step through reels on a laptop
+  // Arrow keys / j k step through dishes on a laptop
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = scroller.current;
@@ -150,7 +141,7 @@ export function ReelsFeed({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-30 bg-black text-white">
+    <div className="fixed inset-0 z-30 bg-ink text-cream">
       <div
         ref={scroller}
         className="mx-auto h-full max-w-md snap-y snap-mandatory overflow-y-scroll overscroll-y-contain scrollbar-none"
@@ -159,79 +150,79 @@ export function ReelsFeed({
           <Reel
             key={item.dish.id}
             index={i}
+            count={items.length}
             item={item}
             active={i === active}
             viewerReady={viewerReady}
             hint={hint && i === 0}
-            restaurantName={restaurantName}
-            tableLabel={tableLabel}
             currency={currency}
             onAdded={(name) => setAdded({ name, at: Date.now() })}
           />
         ))}
         {items.length === 0 && (
-          <div className="flex h-full items-center justify-center px-10 text-center text-white/60">Nothing on this menu yet.</div>
+          <div className="flex h-full items-center justify-center px-10 text-center text-cream/60">Nothing on this menu yet.</div>
         )}
       </div>
 
-      {/* Top bar: browse grid · menus · your order */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 mx-auto max-w-md">
-        <div className="pointer-events-auto flex items-center gap-1 px-1.5 pt-[max(env(safe-area-inset-top),0.375rem)]">
+      {/* Top bar: all dishes · where you are · your order, then the menus */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 mx-auto max-w-md bg-gradient-to-b from-ink via-ink/85 to-transparent pb-5">
+        <div className="pointer-events-auto flex items-center gap-2.5 px-3 pt-[max(env(safe-area-inset-top),0.5rem)]">
           <button
             onClick={onBrowse}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:bg-white/10"
-            aria-label="Browse all dishes"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cream/15 active:bg-cream/10"
+            aria-label="All dishes"
           >
-            <LayoutGrid className="h-6 w-6 drop-shadow" />
+            <LayoutGrid className="h-[18px] w-[18px]" />
           </button>
-          <nav
-            className="flex min-w-0 flex-1 gap-5 overflow-x-auto px-2 scrollbar-none [mask-image:linear-gradient(90deg,transparent,#000_10px,#000_calc(100%-10px),transparent)]"
-            aria-label="Menus"
-          >
-            {[{ id: null as string | null, name: 'For you' }, ...categories].map((c) => {
-              const on = c.id === categoryId;
-              return (
-                <button
-                  key={c.id ?? 'all'}
-                  onClick={(e) => {
-                    e.currentTarget.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-                    onCategory(c.id);
-                  }}
-                  aria-pressed={on}
-                  className={cn(
-                    'relative shrink-0 py-2.5 text-[15px] font-semibold [text-shadow:0_1px_3px_rgba(0,0,0,0.45)] transition-colors',
-                    on ? 'text-white' : 'text-white/60',
-                  )}
-                >
-                  {c.name}
-                  {on && <span className="absolute inset-x-1/4 bottom-1 h-[2px] rounded-full bg-white" />}
-                </button>
-              );
-            })}
-          </nav>
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate font-display text-[17px]">{restaurantName}</p>
+            {tableLabel && <p className={cn(label, 'text-cream/50')}>Table {tableLabel}</p>}
+          </div>
           <Link
             href="/cart"
-            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:bg-white/10"
+            className="flex h-10 shrink-0 items-center gap-2 rounded-full border border-cream/15 px-3.5 active:bg-cream/10"
             aria-label={`Your order, ${itemCount} ${itemCount === 1 ? 'item' : 'items'}`}
           >
-            <ShoppingBag className="h-6 w-6 drop-shadow" />
+            <ShoppingBag className="h-[18px] w-[18px]" />
             {itemCount > 0 && (
-              <span className="absolute right-0.5 top-0.5 min-w-[18px] rounded-full bg-ig px-1 text-center text-[10px] font-bold leading-[18px] ring-2 ring-black/40">
+              <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-ember px-1 font-mono text-[11px] font-medium text-ink">
                 {itemCount}
               </span>
             )}
           </Link>
         </div>
+        <nav className="pointer-events-auto mt-2.5 flex gap-1.5 overflow-x-auto px-3 scrollbar-none" aria-label="Menus">
+          {[{ id: null as string | null, name: 'All' }, ...categories].map((c) => {
+            const on = c.id === categoryId;
+            return (
+              <button
+                key={c.id ?? 'all'}
+                onClick={(e) => {
+                  e.currentTarget.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+                  onCategory(c.id);
+                }}
+                aria-pressed={on}
+                className={cn(
+                  label,
+                  'shrink-0 rounded-full px-3.5 py-1.5 transition-colors',
+                  on ? 'bg-cream text-ink' : 'border border-cream/15 text-cream/60',
+                )}
+              >
+                {c.name}
+              </button>
+            );
+          })}
+        </nav>
 
         {added && (
           <Link
             key={added.at}
             href="/cart"
-            className="pointer-events-auto mx-auto mt-2 flex w-max max-w-[calc(100%-2rem)] items-center gap-2 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-gray-900 shadow-xl animate-toast-in"
+            className="pointer-events-auto mx-auto mt-3 flex w-max max-w-[calc(100%-2rem)] items-center gap-2 rounded-full bg-cream px-4 py-2 text-[13px] font-semibold text-ink shadow-xl animate-toast-in"
           >
-            <Check className="h-4 w-4 shrink-0 text-green-600" />
+            <Check className="h-4 w-4 shrink-0 text-ember" />
             <span className="truncate">{added.name} added</span>
-            <span className="shrink-0 text-gray-400">·</span>
+            <span className="shrink-0 text-ink/40">·</span>
             <span className="shrink-0">View order {formatPrice(total, currency)}</span>
           </Link>
         )}
@@ -243,18 +234,16 @@ export function ReelsFeed({
 interface ReelProps {
   item: ReelItem;
   index: number;
+  count: number;
   active: boolean;
   viewerReady: boolean;
   hint: boolean;
-  restaurantName: string;
-  tableLabel?: string | null;
   currency: string;
   onAdded: (name: string) => void;
 }
 
-function Reel({ item, index, active, viewerReady, hint, restaurantName, tableLabel, currency, onAdded }: ReelProps) {
+function Reel({ item, index, count, active, viewerReady, hint, currency, onAdded }: ReelProps) {
   const { dish, category, ar } = item;
-  const dispatch = useAppDispatch();
   const { isLiked, toggle, like } = useLikes();
   const { items: cart, addItem } = useCart();
   const [expanded, setExpanded] = useState(false);
@@ -264,12 +253,14 @@ function Reel({ item, index, active, viewerReady, hint, restaurantName, tableLab
   const qty = cart.find((i) => i.dishId === dish.id)?.quantity ?? 0;
   const price = formatPrice(Number(dish.price), currency);
   const allergens: string[] = (dish.allergens || []).map((a: any) => (ALLERGEN_LABELS as any)[a.allergen] ?? a.allergen);
-  const tint = pickFor(dish.categoryId || dish.id, TINTS);
-  // Only the reel on screen runs a WebGL viewer
+  const ingredients: string[] = [...(dish.ingredients || [])]
+    .sort((a: any, b: any) => Number(b.isPrimary) - Number(a.isPrimary))
+    .map((i: any) => i.name);
+  // Only the dish on screen runs a WebGL viewer
   const modelUrl: string | undefined = ar && active && viewerReady ? dish.arAsset?.fileUrl : undefined;
   const showModel = Boolean(modelUrl && loaded);
   const cutout = dish.imageUrl && /\.png($|\?)/i.test(dish.imageUrl);
-  const ticker = [category, restaurantName, tableLabel && `Table ${tableLabel}`].filter(Boolean).join('  ·  ');
+  const pictured = Boolean(dish.imageUrl || ar);
 
   useEffect(() => {
     if (!active) {
@@ -283,158 +274,164 @@ function Reel({ item, index, active, viewerReady, hint, restaurantName, tableLab
     onAdded(dish.name);
   }
 
-  async function share() {
-    const url = `${window.location.origin}/dish/${dish.id}`;
-    try {
-      if (navigator.share) await navigator.share({ title: dish.name, text: `${dish.name} at ${restaurantName}`, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        dispatch(notify('success', 'Link copied'));
-      }
-    } catch {
-      // Share sheet dismissed
-    }
-  }
-
   return (
     <section
       data-index={index}
       aria-label={`${dish.name}, ${price}`}
-      className="relative h-full w-full snap-start snap-always overflow-hidden"
-      style={{ background: `radial-gradient(110% 70% at 50% 36%, ${tint} 0%, #0c0a09 72%)` }}
+      className="relative flex h-full w-full snap-start snap-always flex-col overflow-hidden"
     >
-      {/* Media */}
-      <DoubleTapLike onLike={() => like(dish.id)} className="absolute inset-0">
-        {dish.imageUrl && !cutout && (
+      {/* Warm light behind the dish, or the photo itself */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(80% 48% at 50% 38%, rgba(255,107,26,0.17), rgba(11,10,9,0) 70%)' }}
+      />
+      {dish.imageUrl && !cutout && (
+        <>
           <img src={dish.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover animate-ken-burns" />
-        )}
-        <div className="absolute inset-x-0 top-[8%] h-[58%]">
+          <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/60 to-ink/30" />
+        </>
+      )}
+
+      {/* Room for the top bar */}
+      <div className="h-[calc(max(env(safe-area-inset-top),0.5rem)+5.75rem)] shrink-0" />
+
+      {/* Dish */}
+      <div className="relative min-h-0 flex-1">
+        <DoubleTapLike onLike={() => like(dish.id)} className="absolute inset-0">
           {cutout && (
             <img
               src={dish.imageUrl}
               alt=""
               className={cn(
-                'absolute inset-0 h-full w-full object-contain p-[7%] drop-shadow-[0_28px_40px_rgba(0,0,0,0.55)] transition-opacity duration-500',
+                'absolute inset-0 h-full w-full object-contain p-[9%] drop-shadow-[0_28px_40px_rgba(0,0,0,0.6)] transition-opacity duration-500',
                 showModel ? 'opacity-0' : 'opacity-100 animate-float',
               )}
             />
           )}
-          {!dish.imageUrl && !showModel && <TitleCard name={dish.name} category={category} />}
+          {!pictured && <TitleCard name={dish.name} category={category} ingredients={ingredients} />}
           {modelUrl && <ReelModel src={modelUrl} onLoad={() => setLoaded(true)} />}
-        </div>
-      </DoubleTapLike>
+        </DoubleTapLike>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/55 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+        {pictured &&
+          ingredients.slice(0, CALLOUTS.length).map((name, i) => (
+            <Callout key={name} name={name} side={CALLOUTS[i]!.side} top={CALLOUTS[i]!.top} shown={active} delay={350 + i * 160} />
+          ))}
 
-      {hint && (
-        <div className="pointer-events-none absolute inset-x-0 top-[55%] z-10 flex justify-center animate-fade-in">
-          <span className="flex flex-col items-center gap-1 rounded-2xl bg-black/45 px-4 py-3 text-[13px] font-semibold backdrop-blur-md">
-            <ChevronUp className="h-6 w-6 animate-swipe-hint" />
-            Swipe up for the next dish
-          </span>
-        </div>
-      )}
-
-      {/* Right rail */}
-      <div className="absolute right-1.5 z-10 flex w-16 flex-col items-center gap-4" style={{ bottom: 'calc(var(--guest-nav-h) + 1rem)' }}>
-        <RailButton label={liked ? 'Liked' : 'Like'} onClick={() => toggle(dish.id)} pressed={liked}>
-          <Heart
-            key={String(liked)}
-            className={cn('h-[30px] w-[30px]', liked ? 'fill-red-500 text-red-500 animate-heart-pop' : 'text-white')}
-          />
-        </RailButton>
-        {ar && (
-          <RailLink href={`/dish/${dish.id}/ar`} label="AR" aria-label={`See ${dish.name} on your table in AR`}>
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ig shadow-lg shadow-pink-500/30">
-              <Box className="h-6 w-6" />
-            </span>
-          </RailLink>
-        )}
-        <RailButton label={qty ? `${qty} added` : 'Add'} onClick={add} aria-label={`Add ${dish.name}`}>
-          <span className="relative">
-            <ShoppingBag className="h-[30px] w-[30px]" />
-            <span className="absolute -bottom-1 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-gray-900 ring-2 ring-black/30">
-              {qty ? qty : <Plus className="h-3 w-3" strokeWidth={3} />}
-            </span>
-          </span>
-        </RailButton>
-        <RailButton label="Share" onClick={share}>
-          <Send className="h-7 w-7 -rotate-12" />
-        </RailButton>
-        <RailLink href={`/dish/${dish.id}`} label="Details" aria-label={`${dish.name} details`}>
-          <MoreHorizontal className="h-7 w-7" />
-        </RailLink>
-        <span className={cn('mt-1 block h-9 w-9 overflow-hidden rounded-lg ring-2 ring-white/90', active && 'animate-spin-slow')}>
-          <RestaurantAvatar name={restaurantName} className="text-[11px]" />
+        <span className={cn(label, 'pointer-events-none absolute right-3 top-0 tabular-nums text-cream/40')}>
+          {String(index + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}
         </span>
+
+        {hint && (
+          <span
+            className={cn(
+              label,
+              'pointer-events-none absolute inset-x-0 bottom-2 mx-auto flex w-max items-center gap-1.5 rounded-full bg-ink/70 px-3.5 py-2 text-cream/80 backdrop-blur-md animate-fade-in',
+            )}
+          >
+            <ChevronUp className="h-4 w-4 animate-swipe-hint" /> Swipe up · next dish
+          </span>
+        )}
       </div>
 
-      {/* Caption */}
-      <div className="absolute left-0 right-[4.5rem] z-10 pl-3.5" style={{ bottom: 'calc(var(--guest-nav-h) + 0.875rem)' }}>
-        <div className="flex items-center gap-2">
-          <span className="h-8 w-8 shrink-0 overflow-hidden rounded-full ring-2 ring-white/90">
-            <RestaurantAvatar name={restaurantName} className="text-[11px]" />
-          </span>
-          <span className="truncate text-sm font-semibold">{restaurantName}</span>
-          {tableLabel && (
-            <span className="shrink-0 rounded-lg border border-white/70 px-2.5 py-0.5 text-xs font-semibold">Table {tableLabel}</span>
-          )}
-        </div>
-
-        <h2 className="mt-2.5 font-display text-[27px] font-medium leading-[1.08] [text-shadow:0_2px_12px_rgba(0,0,0,0.35)]">
-          {dish.name}
-        </h2>
-
-        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
-          <span className="rounded-md bg-white px-1.5 py-0.5 font-bold text-gray-900">{price}</span>
+      {/* About the dish */}
+      <div className="relative z-10 shrink-0 px-4 pt-3">
+        <p className={cn(label, 'flex flex-wrap items-center gap-x-2 gap-y-1 text-cream/55')}>
+          <span>{category}</span>
           {dish.isFeatured && (
-            <span className="inline-flex items-center gap-1 font-semibold text-amber-300">
-              <Star className="h-3.5 w-3.5 fill-current" /> Chef’s pick
+            <span className="flex items-center gap-2 text-ember">
+              <span className="h-1 w-1 rounded-full bg-ember" /> Chef’s pick
             </span>
           )}
           {dish.prepTimeMin && (
-            <span className="inline-flex items-center gap-1 text-white/80">
-              <Clock className="h-3.5 w-3.5" /> {dish.prepTimeMin} min
+            <span className="flex items-center gap-2">
+              <span className="h-1 w-1 rounded-full bg-cream/30" /> {dish.prepTimeMin} min
             </span>
           )}
-          {ar && (
-            <span className="inline-flex items-center gap-1 text-white/80">
-              <Box className="h-3.5 w-3.5" /> Live 3D
-            </span>
-          )}
-        </div>
-
+        </p>
+        <Link href={`/dish/${dish.id}`} className="mt-1.5 flex items-start gap-1.5 font-display text-[28px] font-medium leading-[1.05]">
+          <span className="min-w-0">{dish.name}</span>
+          <ArrowUpRight className="mt-1 h-5 w-5 shrink-0 text-cream/40" aria-label="Details" />
+        </Link>
         {dish.description && (
           <button
             onClick={() => setExpanded((e) => !e)}
-            className={cn('mt-2 block text-left text-[13.5px] leading-snug text-white/90', !expanded && 'line-clamp-2')}
+            className={cn('mt-1.5 block text-left text-[13.5px] leading-snug text-cream/65', !expanded && 'line-clamp-2')}
           >
             {dish.description}
           </button>
         )}
-        {allergens.length > 0 && <p className="mt-1 text-xs text-white/55">Contains {allergens.join(', ')}</p>}
+        <MacroRow nutrition={dish.nutrition} className="mt-3" />
+        {allergens.length > 0 && <p className={cn(label, 'mt-2 tracking-[0.16em] text-cream/45')}>Contains {allergens.join(' · ')}</p>}
 
-        <div className="mt-2.5 flex items-center gap-2 text-[12.5px] text-white/85">
-          <UtensilsCrossed className="h-3.5 w-3.5 shrink-0" />
-          <div className="min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(90deg,#000_80%,transparent)]">
-            <div className={cn('flex w-max whitespace-nowrap', active && 'animate-marquee')}>
-              <span className="pr-10">{ticker}</span>
-              <span className="pr-10" aria-hidden>
-                {ticker}
+        <div className="mt-3.5 flex items-center gap-2">
+          <button
+            onClick={() => toggle(dish.id)}
+            aria-label={liked ? 'Unlike' : 'Like'}
+            aria-pressed={liked}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-cream/15 transition active:scale-90"
+          >
+            <Heart key={String(liked)} className={cn('h-[22px] w-[22px]', liked && 'fill-ember text-ember animate-heart-pop')} />
+          </button>
+          {ar && (
+            <Link
+              href={`/dish/${dish.id}/ar`}
+              aria-label={`See ${dish.name} on your table in AR`}
+              className="flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-cream/15 px-4 text-sm font-semibold transition active:scale-95"
+            >
+              <Box className="h-[18px] w-[18px] text-ember" /> AR
+            </Link>
+          )}
+          <button
+            onClick={add}
+            aria-label={`Add ${dish.name}, ${price}`}
+            className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-ember pl-5 pr-1.5 font-semibold text-ink transition active:scale-[0.98]"
+          >
+            <span className="truncate">{qty ? `${qty} in order` : 'Add'}</span>
+            <span className="flex items-center gap-2">
+              <span className="font-mono text-sm">{price}</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink/15">
+                <Plus className="h-4 w-4" strokeWidth={2.5} />
               </span>
-            </div>
-          </div>
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* Playback bar: one turn of the 3D dish */}
-      {showModel && (
-        <div className="absolute inset-x-0 z-10 h-[2px] bg-white/20" style={{ bottom: 'var(--guest-nav-h)' }}>
-          <div className="h-full origin-left bg-white/90 animate-reel-progress" />
-        </div>
-      )}
+      {/* Room for the bottom nav */}
+      <div className="shrink-0" style={{ height: 'calc(var(--guest-nav-h) + 0.75rem)' }} />
     </section>
+  );
+}
+
+/** An ingredient label with a line drawn into the dish. */
+function Callout({ name, side, top, shown, delay }: { name: string; side: 'left' | 'right'; top: string; shown: boolean; delay: number }) {
+  const left = side === 'left';
+  return (
+    <span
+      aria-hidden
+      className={cn('pointer-events-none absolute flex items-center', left ? 'left-3' : 'right-3 flex-row-reverse')}
+      style={{ top }}
+    >
+      <span
+        className={cn(
+          label,
+          'max-w-[11.5rem] truncate rounded-full border border-cream/15 bg-ink/60 px-2.5 py-1 tracking-[0.14em] text-cream/85 backdrop-blur-md transition-all duration-500',
+          shown ? 'translate-x-0 opacity-100' : left ? '-translate-x-2 opacity-0' : 'translate-x-2 opacity-0',
+        )}
+        style={{ transitionDelay: shown ? `${delay}ms` : '0ms' }}
+      >
+        {name}
+      </span>
+      <span
+        className={cn('h-px w-7 bg-cream/40 transition-transform duration-500', left ? 'origin-left' : 'origin-right', shown ? 'scale-x-100' : 'scale-x-0')}
+        style={{ transitionDelay: shown ? `${delay + 200}ms` : '0ms' }}
+      />
+      <span
+        className={cn('h-1.5 w-1.5 rounded-full bg-ember shadow-[0_0_0_3px_rgba(255,107,26,0.25)] transition-opacity duration-300', shown ? 'opacity-100' : 'opacity-0')}
+        style={{ transitionDelay: shown ? `${delay + 450}ms` : '0ms' }}
+      />
+    </span>
   );
 }
 
@@ -460,7 +457,7 @@ function ReelModel({ src, onLoad }: { src: string; onLoad: () => void }) {
       src,
       alt: '',
       loading: 'eager',
-      'camera-orbit': 'auto 72deg 115%',
+      'camera-orbit': 'auto 68deg 110%',
       'interaction-prompt': 'none',
       'environment-image': 'neutral',
       'shadow-intensity': '1',
@@ -483,52 +480,15 @@ function ReelModel({ src, onLoad }: { src: string; onLoad: () => void }) {
   );
 }
 
-/** Typographic cover for a dish without a photo or model yet. */
-function TitleCard({ name, category }: { name: string; category: string }) {
+/** Typographic cover for a dish without a photo or model: name and what's in it. */
+function TitleCard({ name, category, ingredients }: { name: string; category: string; ingredients: string[] }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center animate-float">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/50">{category}</span>
-      <span className="mt-4 font-display text-[44px] font-medium leading-[1.02] text-white">{name}</span>
-      <span className="mt-6 h-px w-12 bg-white/30" />
+    <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
+      <span className={cn(label, 'text-ember')}>({category})</span>
+      <span className="mt-4 font-display text-[44px] font-medium leading-[1] tracking-[-0.02em]">{name}</span>
+      {ingredients.length > 0 && (
+        <span className={cn(label, 'mt-6 max-w-[18rem] leading-relaxed tracking-[0.16em] text-cream/55')}>{ingredients.join(' · ')}</span>
+      )}
     </div>
-  );
-}
-
-function RailButton({
-  label,
-  children,
-  onClick,
-  pressed,
-  'aria-label': ariaLabel,
-}: {
-  label: string;
-  children: ReactNode;
-  onClick: () => void;
-  pressed?: boolean;
-  'aria-label'?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={ariaLabel ?? label}
-      aria-pressed={pressed}
-      className="flex flex-col items-center gap-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.45)] transition active:scale-90"
-    >
-      {children}
-      <span className="text-xs font-semibold">{label}</span>
-    </button>
-  );
-}
-
-function RailLink({ href, label, children, 'aria-label': ariaLabel }: { href: string; label: string; children: ReactNode; 'aria-label'?: string }) {
-  return (
-    <Link
-      href={href}
-      aria-label={ariaLabel ?? label}
-      className="flex flex-col items-center gap-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.45)] transition active:scale-90"
-    >
-      {children}
-      <span className="text-xs font-semibold">{label}</span>
-    </Link>
   );
 }

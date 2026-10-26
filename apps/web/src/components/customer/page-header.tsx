@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 
-/** Slim, Instagram-like top bar used across the guest pages. */
+/** Slim top bar used across the guest pages. */
 export function PageHeader({
   title,
   subtitle,

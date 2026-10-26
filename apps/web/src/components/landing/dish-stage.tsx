@@ -58,12 +58,14 @@ export function DishStage({ src, state, onProgress, onLoaded }: DishStageProps) 
     const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = envMap;
 
-    // Warm key light and an ember rim, like a dish under a pass lamp
+    // Warm key light and an ember rim, like a dish under a pass lamp, plus a
+    // soft fill so the side turned away never goes muddy
     const key = new THREE.DirectionalLight(0xffd9b0, 2.4);
     key.position.set(3, 4, 5);
     const rim = new THREE.DirectionalLight(0xff7a2e, 2.2);
     rim.position.set(-4, 1.5, -3);
-    scene.add(key, rim);
+    const fill = new THREE.HemisphereLight(0xfff1e0, 0x3a2416, 0.9);
+    scene.add(key, rim, fill);
 
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
     camera.position.set(0, 0, 6);
