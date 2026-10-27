@@ -6,10 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatPrice(amount: number, currency: string = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', {
     style: 'currency',
     currency,
-  }).format(amount);
+    // Rupee menus don't show paise on round prices
+    ...(currency === 'INR' && { trailingZeroDisplay: 'stripIfInteger' }),
+  } as Intl.NumberFormatOptions).format(amount);
 }
 
 export function formatTime(date: Date | string): string {
