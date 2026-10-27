@@ -25,6 +25,15 @@ if ! sudo swapon --show | grep -q /swapfile; then
   grep -q /swapfile /etc/fstab || echo '/swapfile none swap defaults 0 0' | sudo tee -a /etc/fstab >/dev/null
 fi
 
+# Guests in India are ~200 ms from eu-north-1, where the default cubic crawls
+# (~0.2 MB/s) on big downloads like the 3D models; BBR handles that distance
+if [ "$(sysctl -n net.ipv4.tcp_congestion_control)" != bbr ]; then
+  echo tcp_bbr | sudo tee /etc/modules-load.d/bbr.conf >/dev/null
+  printf 'net.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr\n' | sudo tee /etc/sysctl.d/90-bbr.conf >/dev/null
+  sudo modprobe tcp_bbr
+  sudo sysctl -q -p /etc/sysctl.d/90-bbr.conf
+fi
+
 sudo dnf install -y -q postgresql16-server redis6 rsync tar xz >/dev/null
 
 # Node 22 LTS from nodejs.org (the distro packages lag behind)

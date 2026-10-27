@@ -103,6 +103,7 @@ export function ModelViewerAr({
   const [xrActive, setXrActive] = useState(false);
   const [xrStatus, setXrStatus] = useState<DishArStatus>('loading');
   const [arError, setArError] = useState<'failed' | 'camera-denied' | 'camera' | null>(null);
+  const [opening, setOpening] = useState(false);
   const [tipsOpen, setTipsOpen] = useState(false);
   const [size, setSize] = useState<{ w: number; d: number; h: number } | null>(null);
   const viewerRef = useRef<ModelViewerElement | null>(null);
@@ -166,6 +167,22 @@ export function ModelViewerAr({
 
   useEffect(() => () => sessionRef.current?.end(), []);
 
+  // Quick Look (Chrome on iPhone especially) shows nothing until the whole
+  // USDZ has downloaded, so on a slow connection the button looks dead, and
+  // every extra tap restarts the download. Hold it until AR takes the screen.
+  useEffect(() => {
+    if (!opening) return;
+    const done = () => setOpening(false);
+    const t = setTimeout(done, 25000);
+    window.addEventListener('blur', done);
+    document.addEventListener('visibilitychange', done);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('blur', done);
+      document.removeEventListener('visibilitychange', done);
+    };
+  }, [opening]);
+
   /** Our own AR on Android: WebXR with ARCore, otherwise the camera preview. */
   async function startSession() {
     const overlay = overlayRef.current;
@@ -208,10 +225,17 @@ export function ModelViewerAr({
     setTipsOpen(false);
     setArError(null);
     if (webxr || cameraAr) startSession();
-    else viewerRef.current?.activateAR().catch(() => setArError('failed'));
+    else {
+      setOpening(true);
+      viewerRef.current?.activateAR().catch(() => {
+        setOpening(false);
+        setArError('failed');
+      });
+    }
   }
 
   function handleArClick() {
+    if (opening) return;
     if (hasSeenArTips()) launchAr();
     else setTipsOpen(true);
   }
@@ -294,10 +318,15 @@ export function ModelViewerAr({
         {showArButton && canAr && (
           <button
             onClick={handleArClick}
+            aria-busy={opening}
             className="pointer-events-auto flex items-center gap-2 whitespace-nowrap rounded-full bg-ember px-6 py-3.5 font-semibold text-ink shadow-lg shadow-black/30 transition active:scale-[0.97]"
           >
-            <Box className="h-5 w-5" />
-            {arLabel}
+            {opening ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-ink border-t-transparent" />
+            ) : (
+              <Box className="h-5 w-5" />
+            )}
+            {opening ? 'Opening AR…' : arLabel}
           </button>
         )}
         {showArButton && loaded && !canAr && isTouchDevice() && (
